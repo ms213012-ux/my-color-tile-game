@@ -17,7 +17,7 @@ const rooms = {};
 io.on('connection', (socket) => {
   console.log(`[접속] 플레이어 연결됨: ${socket.id}`);
 
-  socket.on('joinRoom', ({ roomId, colorCount, timeLimit }) => {
+  socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname }) => {
     socket.join(roomId);
 
     if (!rooms[roomId]) {
@@ -30,9 +30,11 @@ io.on('connection', (socket) => {
       startRoomTimer(roomId);
     }
 
+    // 닉네임 저장 추가
     rooms[roomId].players[socket.id] = {
       board: JSON.parse(JSON.stringify(rooms[roomId].initialBoard)),
-      score: 0
+      score: 0,
+      nickname: nickname || '익명'
     };
 
     socket.emit('initMyBoard', {
@@ -133,13 +135,17 @@ function startRoomTimer(roomId) {
   }, 1000);
 }
 
+// 닉네임과 점수를 같이 전송
 function sendScoresUpdate(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
   const scoreData = {};
   Object.keys(room.players).forEach(id => {
-    scoreData[id] = room.players[id].score;
+    scoreData[id] = {
+      score: room.players[id].score,
+      nickname: room.players[id].nickname
+    };
   });
 
   io.to(roomId).emit('updateScores', scoreData);
