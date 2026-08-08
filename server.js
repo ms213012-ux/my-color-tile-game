@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
       startRoomTimer(roomId);
     }
 
-    // 닉네임 저장 추가
+    // 플레이어 정보 등록 (닉네임 포함)
     rooms[roomId].players[socket.id] = {
       board: JSON.parse(JSON.stringify(rooms[roomId].initialBoard)),
       score: 0,
@@ -42,6 +42,7 @@ io.on('connection', (socket) => {
       timeRemaining: rooms[roomId].timeRemaining
     });
 
+    // 닉네임 및 점수 현황 방 전체에 전송
     sendScoresUpdate(roomId);
   });
 
@@ -64,12 +65,15 @@ io.on('connection', (socket) => {
           foundTiles.push({ r: nr, c: nc, color: board[nr][nc] });
           break;
         }
-        nr += dr; nc += dc;
+        nr += dr;
+        nc += dc;
       }
     });
 
     const colorCounts = {};
-    foundTiles.forEach(t => colorCounts[t.color] = (colorCounts[t.color] || 0) + 1);
+    foundTiles.forEach(t => {
+      colorCounts[t.color] = (colorCounts[t.color] || 0) + 1;
+    });
 
     let destroyedCount = 0;
     foundTiles.forEach(t => {
@@ -93,10 +97,7 @@ io.on('connection', (socket) => {
     sendScoresUpdate(roomId);
 
     if (player.score >= TARGET_SCORE) {
-      io.to(roomId).emit('gameOver', {
-        winnerId: socket.id,
-        reason: '200점 먼저 달성!'
-      });
+      io.to(roomId).emit('gameOver', { winnerId: socket.id, reason: '200점 먼저 달성!' });
       clearInterval(room.timerInterval);
     }
   });
@@ -127,15 +128,11 @@ function startRoomTimer(roomId) {
 
     if (room.timeRemaining <= 0) {
       clearInterval(room.timerInterval);
-      io.to(roomId).emit('gameOver', {
-        winnerId: null,
-        reason: '시간 초과!'
-      });
+      io.to(roomId).emit('gameOver', { winnerId: null, reason: '시간 초과!' });
     }
   }, 1000);
 }
 
-// 닉네임과 점수를 같이 전송
 function sendScoresUpdate(roomId) {
   const room = rooms[roomId];
   if (!room) return;
