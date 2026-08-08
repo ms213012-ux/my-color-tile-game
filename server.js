@@ -24,13 +24,13 @@ io.on('connection', (socket) => {
       rooms[roomId] = {
         initialBoard: generateBoard(colorCount),
         players: {},
-        timeRemaining: timeLimit || 180,
+        timeRemaining: parseInt(timeLimit, 10) || 86400, // 기본 24시간(86400초)
         timerInterval: null
       };
       startRoomTimer(roomId);
     }
 
-    // 플레이어 정보 등록 (닉네임 포함)
+    // 플레이어 정보 등록
     rooms[roomId].players[socket.id] = {
       board: JSON.parse(JSON.stringify(rooms[roomId].initialBoard)),
       score: 0,
@@ -42,7 +42,6 @@ io.on('connection', (socket) => {
       timeRemaining: rooms[roomId].timeRemaining
     });
 
-    // 닉네임 및 점수 현황 방 전체에 전송
     sendScoresUpdate(roomId);
   });
 
