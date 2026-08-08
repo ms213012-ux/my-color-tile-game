@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>컬러 타일 천후 개조판</title>
+  <title>컬러 타일 게임 (대형 멀티전)</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -238,7 +238,7 @@
 
   <!-- 로비 화면 -->
   <div id="lobby-view" class="lobby-card">
-    <h1>🎨 컬러 타일 천후 개조</h1>
+    <h1>🎨 컬러 타일 멀티전</h1>
     
     <div class="form-group">
       <label for="nickname-input">👤 닉네임 설정</label>
@@ -250,14 +250,15 @@
       <input type="text" id="room-input" value="ROOM_1" placeholder="예: ROOM_123">
     </div>
 
-<div class="form-group">
-      <label for="time-select">⏱️ 제한 시간 설정</label>
-      <select id="time-select">
-        <option value="60">1분 (60초)</option>
-        <option value="120">2분 (120초)</option>
-        <option value="180">3분 (180초)</option>
-        <option value="300">5분 (300초)</option>
-        <option value="86400" selected>24시간 (무제한)</option>
+    <div class="form-group">
+      <label for="color-select">🎨 색상 개수 선택</label>
+      <select id="color-select">
+        <option value="12">12개 (쉬움)</option>
+        <option value="16">16개 (보통)</option>
+        <option value="20">20개 (어려움)</option>
+        <option value="24" selected>24개 (추천)</option>
+        <option value="28">28개 (매우 어려움)</option>
+        <option value="32">32개 (극악)</option>
       </select>
     </div>
 
@@ -266,9 +267,9 @@
       <select id="time-select">
         <option value="60">1분 (60초)</option>
         <option value="120">2분 (120초)</option>
-        <option value="180" selected>3분 (180초)</option>
-        <option value="240">4분 (240초)</option>
+        <option value="180">3분 (180초)</option>
         <option value="300">5분 (300초)</option>
+        <option value="86400" selected>24시간 (무제한)</option>
       </select>
     </div>
 
@@ -417,12 +418,10 @@
     else playWrongSound();
   });
 
-  // 실시간 플레이어 순위 & 점수 업데이트
   socket.on('updateScores', (scores) => {
     const playerListEl = document.getElementById('player-list');
     playerListEl.innerHTML = '';
 
-    // 점수 높은 순으로 정렬
     const sortedPlayers = Object.keys(scores).map(id => ({
       id,
       nickname: scores[id].nickname,
@@ -497,9 +496,16 @@
   }
 
   function updateTimerDisplay() {
-    const minutes = Math.floor(timeRemaining / 60);
+    const hours = Math.floor(timeRemaining / 3600);
+    const minutes = Math.floor((timeRemaining % 3600) / 60);
     const seconds = timeRemaining % 60;
-    const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    let timeStr = "";
+    if (hours > 0) {
+      timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    } else {
+      timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
     
     const timerEl = document.getElementById('timer');
     timerEl.innerText = timeStr;
