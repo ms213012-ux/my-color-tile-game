@@ -65,18 +65,116 @@
     .btn-start:hover { filter: brightness(1.1); }
     .btn-start:active { transform: scale(0.98); }
 
-    /* --- 게임 화면 --- */
-    .game-container { display: flex; flex-direction: column; align-items: center; }
-
-    .top-bar {
-      display: flex; justify-content: space-between; align-items: center;
-      width: 100%; max-width: 930px; margin-bottom: 12px; padding: 0 5px;
+    /* --- 게임 메인 레이아웃 (좌: 플레이어 목록 / 우: 게임판) --- */
+    .game-container {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      justify-content: center;
+      max-width: 1300px;
+      width: 100%;
     }
 
-    .status-panel { display: flex; gap: 20px; font-size: 18px; font-weight: bold; }
-    .my-score-box { color: #facc15; }
-    .op-score-box { color: #f87171; }
-    .time-box { color: #38bdf8; }
+    /* 좌측 사이드바 패널 */
+    .sidebar {
+      width: 280px;
+      background-color: #0d1629;
+      border: 1px solid #1e2c4a;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+
+    .sidebar h3 {
+      font-size: 18px;
+      color: #38bdf8;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #1e2c4a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .player-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .player-card {
+      background-color: #16223b;
+      border: 1px solid #243456;
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background-color 0.2s;
+    }
+
+    .player-card.my-card {
+      border-color: #38bdf8;
+      background-color: #1e3a5f;
+    }
+
+    .player-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .rank-badge {
+      font-size: 12px;
+      font-weight: bold;
+      background-color: #334155;
+      color: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .nickname {
+      font-size: 15px;
+      font-weight: bold;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 110px;
+    }
+
+    .me-tag {
+      font-size: 11px;
+      color: #38bdf8;
+      margin-left: 2px;
+    }
+
+    .score-text {
+      font-size: 15px;
+      font-weight: bold;
+      color: #facc15;
+    }
+
+    /* 우측 메인 영역 */
+    .main-section {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .time-box { font-size: 18px; font-weight: bold; color: #38bdf8; }
     .time-warning { color: #ef4444; animation: blink 1s infinite; }
 
     @keyframes blink { 50% { opacity: 0.5; } }
@@ -138,6 +236,7 @@
 </head>
 <body>
 
+  <!-- 로비 화면 -->
   <div id="lobby-view" class="lobby-card">
     <h1>🎨 컬러 타일 멀티전</h1>
     
@@ -184,19 +283,28 @@
     <button class="btn-start" onclick="startGame()">게임 참가하기</button>
   </div>
 
+  <!-- 게임 메인 화면 -->
   <div id="game-view" class="game-container hidden">
-    <div class="top-bar">
-      <div class="status-panel">
-        <div class="my-score-box"><span id="my-name">나</span>: <span id="score">0</span> / 200</div>
-        <div class="op-score-box"><span id="op-name">상대</span>: <span id="op-score">대기 중...</span></div>
-        <div class="time-box">남은 시간: <span id="timer">03:00</span></div>
-      </div>
-      <button class="btn-lobby" onclick="location.reload()">로비로 나가기</button>
+    
+    <!-- 좌측 플레이어 목록 패널 -->
+    <div class="sidebar">
+      <h3>👥 플레이어 현황</h3>
+      <div id="player-list" class="player-list-container"></div>
     </div>
 
-    <div id="board" class="grid"></div>
+    <!-- 우측 보드 & 타이머 -->
+    <div class="main-section">
+      <div class="top-bar">
+        <div class="time-box">⏱️ 남은 시간: <span id="timer">03:00</span></div>
+        <button class="btn-lobby" onclick="location.reload()">로비로 나가기</button>
+      </div>
+
+      <div id="board" class="grid"></div>
+    </div>
+
   </div>
 
+  <!-- 결과 모달 -->
   <div id="modal" class="modal">
     <h2 id="modal-title">🎉 승리!</h2>
     <p id="modal-desc">200점을 달성하셨습니다!</p>
@@ -310,22 +418,34 @@
     else playWrongSound();
   });
 
+  // 실시간 플레이어 순위 & 점수 업데이트
   socket.on('updateScores', (scores) => {
-    const myId = socket.id;
+    const playerListEl = document.getElementById('player-list');
+    playerListEl.innerHTML = '';
 
-    if (scores[myId]) {
-      document.getElementById('my-name').innerText = scores[myId].nickname;
-      document.getElementById('score').innerText = scores[myId].score;
-    }
+    // 점수 높은 순으로 정렬
+    const sortedPlayers = Object.keys(scores).map(id => ({
+      id,
+      nickname: scores[id].nickname,
+      score: scores[id].score
+    })).sort((a, b) => b.score - a.score);
 
-    const opId = Object.keys(scores).find(id => id !== myId);
-    if (opId) {
-      document.getElementById('op-name').innerText = scores[opId].nickname;
-      document.getElementById('op-score').innerText = scores[opId].score;
-    } else {
-      document.getElementById('op-name').innerText = "상대";
-      document.getElementById('op-score').innerText = "대기 중...";
-    }
+    sortedPlayers.forEach((player, index) => {
+      const isMe = player.id === socket.id;
+      const card = document.createElement('div');
+      card.className = `player-card ${isMe ? 'my-card' : ''}`;
+      
+      card.innerHTML = `
+        <div class="player-info">
+          <span class="rank-badge">${index + 1}위</span>
+          <span class="nickname" title="${player.nickname}">${player.nickname}</span>
+          ${isMe ? '<span class="me-tag">(나)</span>' : ''}
+        </div>
+        <div class="score-text">${player.score} / 200</div>
+      `;
+
+      playerListEl.appendChild(card);
+    });
   });
 
   socket.on('updateTime', ({ timeRemaining: serverTime }) => {
@@ -335,7 +455,7 @@
 
   socket.on('gameOver', ({ winnerId, reason }) => {
     const isWinner = winnerId === socket.id;
-    let msg = isWinner ? `🏆 200점을 먼저 달성했습니다!` : (winnerId ? `💀 상대방이 먼저 달성했습니다.` : `⏰ ${reason}`);
+    let msg = isWinner ? `🏆 200점을 먼저 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 달성했습니다.` : `⏰ ${reason}`);
     endGame(isWinner, msg);
   });
 
