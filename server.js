@@ -1,165 +1,524 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
-
-app.use(express.static(__dirname + '/public'));
-
-const ROWS = 18;
-const COLS = 26;
-const TARGET_SCORE = 200;
-
-const rooms = {};
-
-io.on('connection', (socket) => {
-  console.log(`[접속] 플레이어 연결됨: ${socket.id}`);
-
-  socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname }) => {
-    socket.join(roomId);
-
-    if (!rooms[roomId]) {
-      rooms[roomId] = {
-        initialBoard: generateBoard(colorCount),
-        players: {},
-        timeRemaining: parseInt(timeLimit, 10) || 86400, // 기본 24시간(86400초)
-        timerInterval: null
-      };
-      startRoomTimer(roomId);
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>컬러 타일 게임 (대형 멀티전)</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      background-color: #070c18;
+      color: #ffffff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 15px;
     }
 
-    // 플레이어 정보 등록
-    rooms[roomId].players[socket.id] = {
-      board: JSON.parse(JSON.stringify(rooms[roomId].initialBoard)),
-      score: 0,
-      nickname: nickname || '익명'
-    };
+    .hidden { display: none !important; }
 
-    socket.emit('initMyBoard', {
-      board: rooms[roomId].players[socket.id].board,
-      timeRemaining: rooms[roomId].timeRemaining
+    /* --- 로비 화면 --- */
+    .lobby-card {
+      background-color: #0d1629;
+      border: 1px solid #1e2c4a;
+      border-radius: 16px;
+      padding: 30px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.8);
+      text-align: center;
+    }
+
+    .lobby-card h1 { color: #38bdf8; font-size: 28px; margin-bottom: 25px; }
+
+    .form-group { margin-bottom: 20px; text-align: left; }
+    .form-group label {
+      display: block; font-size: 15px; font-weight: bold; margin-bottom: 8px; color: #94a3b8;
+    }
+    .form-group input[type="text"], .form-group select {
+      width: 100%; padding: 12px; background-color: #16223b; color: #fff;
+      border: 1px solid #243456; border-radius: 8px; font-size: 16px; outline: none;
+    }
+    .form-group input[type="text"]:focus, .form-group select:focus { border-color: #38bdf8; }
+
+    .checkbox-group {
+      display: flex; align-items: center; justify-content: space-between;
+      background-color: #16223b; padding: 12px 15px; border-radius: 8px;
+      border: 1px solid #243456; cursor: pointer;
+    }
+    .checkbox-group label { margin-bottom: 0; cursor: pointer; }
+    .checkbox-group input[type="checkbox"] {
+      width: 20px; height: 20px; accent-color: #38bdf8; cursor: pointer;
+    }
+
+    .btn-start {
+      width: 100%; padding: 14px; font-size: 18px; font-weight: bold;
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+      color: white; border: none; border-radius: 8px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); transition: transform 0.1s, filter 0.2s;
+    }
+    .btn-start:hover { filter: brightness(1.1); }
+    .btn-start:active { transform: scale(0.98); }
+
+    /* --- 게임 메인 레이아웃 --- */
+    .game-container {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      justify-content: center;
+      max-width: 1300px;
+      width: 100%;
+    }
+
+    .sidebar {
+      width: 280px;
+      background-color: #0d1629;
+      border: 1px solid #1e2c4a;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+
+    .sidebar h3 {
+      font-size: 18px; color: #38bdf8; margin-bottom: 15px;
+      padding-bottom: 10px; border-bottom: 1px solid #1e2c4a;
+    }
+
+    .player-list-container {
+      display: flex; flex-direction: column; gap: 10px;
+      max-height: 600px; overflow-y: auto;
+    }
+
+    .player-card {
+      background-color: #16223b; border: 1px solid #243456;
+      border-radius: 10px; padding: 12px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .player-card.my-card { border-color: #38bdf8; background-color: #1e3a5f; }
+
+    .player-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+    .rank-badge {
+      font-size: 12px; font-weight: bold; background-color: #334155;
+      color: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+    }
+    .nickname {
+      font-size: 15px; font-weight: bold; color: #e2e8f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;
+    }
+    .me-tag { font-size: 11px; color: #38bdf8; }
+    .score-text { font-size: 15px; font-weight: bold; color: #facc15; }
+
+    .main-section { display: flex; flex-direction: column; align-items: flex-end; }
+
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      width: 100%; margin-bottom: 12px;
+    }
+
+    .time-box { font-size: 18px; font-weight: bold; color: #38bdf8; }
+    .time-warning { color: #ef4444; animation: blink 1s infinite; }
+
+    @keyframes blink { 50% { opacity: 0.5; } }
+
+    .btn-lobby {
+      padding: 8px 16px; background-color: #1e2c4a; color: #94a3b8;
+      border: 1px solid #334155; border-radius: 6px; cursor: pointer; font-size: 14px;
+    }
+    .btn-lobby:hover { background-color: #334155; color: #fff; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(26, 32px);
+      grid-template-rows: repeat(18, 32px);
+      gap: 3px;
+      background-color: #0a1326;
+      padding: 12px;
+      border-radius: 14px;
+      border: 3px solid #14213d;
+      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 15px 35px rgba(0, 0, 0, 0.7);
+    }
+
+    .tile {
+      width: 32px; height: 32px; border-radius: 7px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: bold; color: rgba(255, 255, 255, 0.9);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6); user-select: none;
+      transition: transform 0.08s ease, filter 0.08s ease;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .tile:hover { transform: scale(1.1); z-index: 2; filter: brightness(1.15); }
+
+    .empty {
+      background-color: #040810 !important; border-radius: 7px; cursor: pointer;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+    }
+    .empty:hover { background-color: #0a101d !important; }
+
+    /* --- 결과 창 (모달 팝업) --- */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(4, 8, 16, 0.88); align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(6px);
+    }
+    .modal.active { display: flex; }
+
+    .modal-card {
+      background-color: #0d1629; border: 1px solid #1e2c4a; border-radius: 16px;
+      padding: 30px; width: 90%; max-width: 440px; text-align: center;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8); animation: popIn 0.3s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-card h2 { font-size: 30px; margin-bottom: 10px; }
+    .modal-card p { font-size: 16px; margin-bottom: 20px; color: #94a3b8; }
+
+    .modal-leaderboard {
+      background-color: #16223b; border-radius: 10px; padding: 12px;
+      margin-bottom: 22px; max-height: 220px; overflow-y: auto; text-align: left;
+    }
+
+    .modal-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; border-bottom: 1px solid #243456; font-size: 15px;
+    }
+    .modal-row:last-child { border-bottom: none; }
+    .modal-row.rank-1 { color: #facc15; font-weight: bold; background-color: rgba(250, 204, 21, 0.1); border-radius: 6px; }
+
+    .btn-modal {
+      width: 100%; padding: 13px; font-size: 16px; font-weight: bold;
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+      color: white; border: none; border-radius: 8px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+    }
+    .btn-modal:hover { filter: brightness(1.1); }
+  </style>
+</head>
+<body>
+
+  <!-- 로비 화면 -->
+  <div id="lobby-view" class="lobby-card">
+    <h1>🎨 컬러 타일 멀티전</h1>
+    
+    <div class="form-group">
+      <label for="nickname-input">👤 닉네임 설정</label>
+      <input type="text" id="nickname-input" value="플레이어1" placeholder="닉네임 입력">
+    </div>
+
+    <div class="form-group">
+      <label for="room-input">🔑 방 코드 (친구와 같은 코드로 접속)</label>
+      <input type="text" id="room-input" value="ROOM_1" placeholder="예: ROOM_123">
+    </div>
+
+    <div class="form-group">
+      <label for="color-select">🎨 색상 개수 선택</label>
+      <select id="color-select">
+        <option value="12">12개 (쉬움)</option>
+        <option value="16">16개 (보통)</option>
+        <option value="20">20개 (어려움)</option>
+        <option value="24" selected>24개 (추천)</option>
+        <option value="28">28개 (매우 어려움)</option>
+        <option value="32">32개 (극악)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="time-select">⏱️ 제한 시간 설정</label>
+      <select id="time-select">
+        <option value="60">1분 (60초)</option>
+        <option value="120">2분 (120초)</option>
+        <option value="180">3분 (180초)</option>
+        <option value="300">5분 (300초)</option>
+        <option value="86400" selected>24시간 (무제한)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <div class="checkbox-group" onclick="document.getElementById('icon-toggle').click();">
+        <label for="icon-toggle">🔣 타일 위 문양/아이콘 표시</label>
+        <input type="checkbox" id="icon-toggle" onclick="event.stopPropagation()">
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startGame()">게임 참가하기</button>
+  </div>
+
+  <!-- 게임 메인 화면 -->
+  <div id="game-view" class="game-container hidden">
+    <div class="sidebar">
+      <h3>👥 플레이어 현황</h3>
+      <div id="player-list" class="player-list-container"></div>
+    </div>
+
+    <div class="main-section">
+      <div class="top-bar">
+        <div class="time-box">⏱️ 남은 시간: <span id="timer">03:00</span></div>
+        <button class="btn-lobby" onclick="location.reload()">로비로 나가기</button>
+      </div>
+
+      <div id="board" class="grid"></div>
+    </div>
+  </div>
+
+  <!-- 결과 모달 팝업 -->
+  <div id="modal" class="modal">
+    <div class="modal-card">
+      <h2 id="modal-title">🏆 승리!</h2>
+      <p id="modal-desc">200점을 달성하셨습니다!</p>
+      <div id="modal-leaderboard" class="modal-leaderboard"></div>
+      <button class="btn-modal" onclick="location.reload()">로비로 이동</button>
+    </div>
+  </div>
+
+<script>
+  const socket = io();
+  const ROWS = 18;
+  const COLS = 26;
+
+  const SYMBOLS = [
+    '★','▲','■','◆','●','♥','♣','♠',
+    '◈','▣','◐','◑','☀','🌙','☁','⚡',
+    '㉿','♨','♞','♟','✢','✦','✧','✶',
+    '❆','❇','❈','❉','❊','❋','⚽','⚾'
+  ];
+
+  let board = [];
+  let timeRemaining = 0;
+  let currentRoomId = "ROOM_1";
+  let showIcons = false;
+  let activeColors = [];
+  let lastScores = {};
+
+  function generateHighContrastColors(count) {
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+      const hue = Math.floor((360 / count) * i);
+      const sat = (i % 2 === 0) ? 90 : 75;
+      const lightTop = (i % 2 === 0) ? 68 : 58;
+      const lightBottom = (i % 2 === 0) ? 42 : 32;
+
+      colors.push({
+        background: `linear-gradient(180deg, hsl(${hue}, ${sat}%, ${lightTop}%) 0%, hsl(${hue}, ${sat}%, ${lightBottom}%) 100%)`
+      });
+    }
+    return colors;
+  }
+
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playCorrectSound() {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(750, audioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.2);
+  }
+
+  function playWrongSound() {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.35);
+  }
+
+  function startGame() {
+    initAudio();
+    const nickname = document.getElementById('nickname-input').value.trim() || "익명";
+    currentRoomId = document.getElementById('room-input').value.trim() || "ROOM_1";
+    const selectedColorCount = parseInt(document.getElementById('color-select').value, 10);
+    const timeLimit = parseInt(document.getElementById('time-select').value, 10);
+    showIcons = document.getElementById('icon-toggle').checked;
+
+    activeColors = generateHighContrastColors(selectedColorCount);
+
+    socket.emit('joinRoom', {
+      roomId: currentRoomId,
+      colorCount: selectedColorCount,
+      timeLimit,
+      nickname
     });
+  }
 
-    sendScoresUpdate(roomId);
+  socket.on('initMyBoard', ({ board: myBoard, timeRemaining: serverTime }) => {
+    board = myBoard;
+    timeRemaining = serverTime;
+
+    document.getElementById('lobby-view').classList.add('hidden');
+    document.getElementById('game-view').classList.remove('hidden');
+    document.getElementById('modal').classList.remove('active');
+
+    buildBoardElements();
+    renderBoard();
+    updateTimerDisplay();
   });
 
-  socket.on('clickTile', ({ roomId, r, c }) => {
-    const room = rooms[roomId];
-    if (!room || !room.players[socket.id] || room.timeRemaining <= 0) return;
+  socket.on('updateMyBoard', ({ board: myBoard, hit }) => {
+    board = myBoard;
+    renderBoard();
+    if (hit) playCorrectSound();
+    else playWrongSound();
+  });
 
-    const player = room.players[socket.id];
-    const board = player.board;
+  socket.on('updateScores', (scores) => {
+    lastScores = scores;
+    const playerListEl = document.getElementById('player-list');
+    playerListEl.innerHTML = '';
 
-    if (board[r][c] !== -1) return;
+    const sortedPlayers = Object.keys(scores).map(id => ({
+      id,
+      nickname: scores[id].nickname,
+      score: scores[id].score
+    })).sort((a, b) => b.score - a.score);
 
-    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-    const foundTiles = [];
+    sortedPlayers.forEach((player, index) => {
+      const isMe = player.id === socket.id;
+      const card = document.createElement('div');
+      card.className = `player-card ${isMe ? 'my-card' : ''}`;
+      
+      card.innerHTML = `
+        <div class="player-info">
+          <span class="rank-badge">${index + 1}위</span>
+          <span class="nickname" title="${player.nickname}">${player.nickname}</span>
+          ${isMe ? '<span class="me-tag">(나)</span>' : ''}
+        </div>
+        <div class="score-text">${player.score} / 200</div>
+      `;
 
-    directions.forEach(([dr, dc]) => {
-      let nr = r + dr, nc = c + dc;
-      while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
-        if (board[nr][nc] !== -1) {
-          foundTiles.push({ r: nr, c: nc, color: board[nr][nc] });
-          break;
-        }
-        nr += dr;
-        nc += dc;
+      playerListEl.appendChild(card);
+    });
+  });
+
+  socket.on('updateTime', ({ timeRemaining: serverTime }) => {
+    timeRemaining = serverTime;
+    updateTimerDisplay();
+  });
+
+  socket.on('gameOver', ({ winnerId, reason }) => {
+    const isWinner = winnerId === socket.id;
+    let msg = isWinner ? `🏆 200점을 먼저 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 달성했습니다.` : `⏰ ${reason}`);
+    endGame(isWinner, msg);
+  });
+
+  function buildBoardElements() {
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = '';
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const tile = document.createElement('div');
+        tile.id = `tile-${r}-${c}`;
+        tile.addEventListener('click', () => handleTileClick(r, c));
+        boardEl.appendChild(tile);
       }
-    });
-
-    const colorCounts = {};
-    foundTiles.forEach(t => {
-      colorCounts[t.color] = (colorCounts[t.color] || 0) + 1;
-    });
-
-    let destroyedCount = 0;
-    foundTiles.forEach(t => {
-      if (colorCounts[t.color] >= 2) {
-        board[t.r][t.c] = -1;
-        destroyedCount++;
-      }
-    });
-
-    if (destroyedCount > 0) {
-      player.score += destroyedCount;
-    } else {
-      player.score = Math.max(0, player.score - 1);
-    }
-
-    socket.emit('updateMyBoard', {
-      board: player.board,
-      hit: destroyedCount > 0
-    });
-
-    sendScoresUpdate(roomId);
-
-    if (player.score >= TARGET_SCORE) {
-      io.to(roomId).emit('gameOver', { winnerId: socket.id, reason: '200점 먼저 달성!' });
-      clearInterval(room.timerInterval);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`[해제] 플레이어 연결 종료: ${socket.id}`);
-    Object.keys(rooms).forEach(roomId => {
-      if (rooms[roomId].players[socket.id]) {
-        delete rooms[roomId].players[socket.id];
-        if (Object.keys(rooms[roomId].players).length === 0) {
-          clearInterval(rooms[roomId].timerInterval);
-          delete rooms[roomId];
-        } else {
-          sendScoresUpdate(roomId);
-        }
-      }
-    });
-  });
-});
-
-function startRoomTimer(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-
-  room.timerInterval = setInterval(() => {
-    room.timeRemaining--;
-    io.to(roomId).emit('updateTime', { timeRemaining: room.timeRemaining });
-
-    if (room.timeRemaining <= 0) {
-      clearInterval(room.timerInterval);
-      io.to(roomId).emit('gameOver', { winnerId: null, reason: '시간 초과!' });
-    }
-  }, 1000);
-}
-
-function sendScoresUpdate(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-
-  const scoreData = {};
-  Object.keys(room.players).forEach(id => {
-    scoreData[id] = {
-      score: room.players[id].score,
-      nickname: room.players[id].nickname
-    };
-  });
-
-  io.to(roomId).emit('updateScores', scoreData);
-}
-
-function generateBoard(colorCount) {
-  const board = [];
-  for (let r = 0; r < ROWS; r++) {
-    board[r] = [];
-    for (let c = 0; c < COLS; c++) {
-      const isEmpty = Math.random() < 0.15;
-      board[r][c] = isEmpty ? -1 : Math.floor(Math.random() * colorCount);
     }
   }
-  return board;
-}
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 서버가 실행되었습니다: http://localhost:${PORT}`);
-});
+  function renderBoard() {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const tile = document.getElementById(`tile-${r}-${c}`);
+        if (!tile) continue;
+        const colorIdx = board[r][c];
+
+        if (colorIdx === -1) {
+          tile.className = 'tile empty';
+          tile.style.background = '';
+          tile.innerText = '';
+        } else {
+          tile.className = 'tile';
+          tile.style.background = activeColors[colorIdx] ? activeColors[colorIdx].background : '#333';
+          tile.innerText = showIcons ? SYMBOLS[colorIdx % SYMBOLS.length] : '';
+        }
+      }
+    }
+  }
+
+  function handleTileClick(r, c) {
+    if (board[r][c] !== -1 || timeRemaining <= 0) return;
+    socket.emit('clickTile', { roomId: currentRoomId, r, c });
+  }
+
+  function updateTimerDisplay() {
+    const hours = Math.floor(timeRemaining / 3600);
+    const minutes = Math.floor((timeRemaining % 3600) / 60);
+    const seconds = timeRemaining % 60;
+
+    let timeStr = "";
+    if (hours > 0) {
+      timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    } else {
+      timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    
+    const timerEl = document.getElementById('timer');
+    timerEl.innerText = timeStr;
+
+    if (timeRemaining <= 10) {
+      timerEl.classList.add('time-warning');
+    } else {
+      timerEl.classList.remove('time-warning');
+    }
+  }
+
+  function endGame(isVictory, message) {
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalDesc = document.getElementById('modal-desc');
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+
+    modalTitle.innerText = isVictory ? "🏆 승리!" : "💀 게임 종료";
+    modalTitle.style.color = isVictory ? "#38bdf8" : "#f87171";
+    modalDesc.innerText = message;
+
+    // 최종 순위 리스트 생성
+    modalLeaderboard.innerHTML = '';
+    const sorted = Object.keys(lastScores).map(id => ({
+      id,
+      nickname: lastScores[id].nickname,
+      score: lastScores[id].score
+    })).sort((a, b) => b.score - a.score);
+
+    sorted.forEach((p, idx) => {
+      const row = document.createElement('div');
+      row.className = `modal-row ${idx === 0 ? 'rank-1' : ''}`;
+      row.innerHTML = `
+        <span>${idx + 1}위: ${p.nickname} ${p.id === socket.id ? '(나)' : ''}</span>
+        <span><strong>${p.score}점</strong></span>
+      `;
+      modalLeaderboard.appendChild(row);
+    });
+
+    modal.classList.add('active');
+  }
+</script>
+</body>
+</html>
