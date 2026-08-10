@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>컬러 타일 천후개조</title>
+  <title>컬러 타일 천후 개조</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -65,7 +65,7 @@
     .btn-start:hover { filter: brightness(1.1); }
     .btn-start:active { transform: scale(0.98); }
 
-    /* --- 게임 메인 레이아웃 (좌: 플레이어 목록 / 우: 게임판) --- */
+    /* --- 게임 메인 레이아웃 --- */
     .game-container {
       display: flex;
       gap: 24px;
@@ -75,7 +75,6 @@
       width: 100%;
     }
 
-    /* 좌측 사이드바 패널 */
     .sidebar {
       width: 280px;
       background-color: #0d1629;
@@ -87,91 +86,40 @@
     }
 
     .sidebar h3 {
-      font-size: 18px;
-      color: #38bdf8;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #1e2c4a;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      font-size: 18px; color: #38bdf8; margin-bottom: 15px;
+      padding-bottom: 10px; border-bottom: 1px solid #1e2c4a;
     }
 
     .player-list-container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 600px;
-      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
+      max-height: 600px; overflow-y: auto;
     }
 
     .player-card {
-      background-color: #16223b;
-      border: 1px solid #243456;
-      border-radius: 10px;
-      padding: 12px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: background-color 0.2s;
+      background-color: #16223b; border: 1px solid #243456;
+      border-radius: 10px; padding: 12px 14px;
+      display: flex; align-items: center; justify-content: space-between;
     }
 
-    .player-card.my-card {
-      border-color: #38bdf8;
-      background-color: #1e3a5f;
-    }
+    .player-card.my-card { border-color: #38bdf8; background-color: #1e3a5f; }
 
-    .player-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow: hidden;
-    }
-
+    .player-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
     .rank-badge {
-      font-size: 12px;
-      font-weight: bold;
-      background-color: #334155;
-      color: #f1f5f9;
-      padding: 2px 6px;
-      border-radius: 4px;
+      font-size: 12px; font-weight: bold; background-color: #334155;
+      color: #f1f5f9; padding: 2px 6px; border-radius: 4px;
     }
-
     .nickname {
-      font-size: 15px;
-      font-weight: bold;
-      color: #e2e8f0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 110px;
+      font-size: 15px; font-weight: bold; color: #e2e8f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;
     }
+    .me-tag { font-size: 11px; color: #38bdf8; }
+    .score-text { font-size: 15px; font-weight: bold; color: #facc15; }
 
-    .me-tag {
-      font-size: 11px;
-      color: #38bdf8;
-      margin-left: 2px;
-    }
-
-    .score-text {
-      font-size: 15px;
-      font-weight: bold;
-      color: #facc15;
-    }
-
-    /* 우측 메인 영역 */
-    .main-section {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
+    .main-section { display: flex; flex-direction: column; align-items: flex-end; }
 
     .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+      width: 100%; margin-bottom: 12px;
     }
 
     .time-box { font-size: 18px; font-weight: bold; color: #38bdf8; }
@@ -206,32 +154,55 @@
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 2px 4px rgba(0, 0, 0, 0.4);
     }
 
-    .tile:hover {
-      transform: scale(1.1); z-index: 2;
-      filter: brightness(1.15);
-    }
+    .tile:hover { transform: scale(1.1); z-index: 2; filter: brightness(1.15); }
 
     .empty {
-      background-color: #040810 !important;
-      border-radius: 7px;
-      cursor: pointer;
+      background-color: #040810 !important; border-radius: 7px; cursor: pointer;
       box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
     }
     .empty:hover { background-color: #0a101d !important; }
 
+    /* --- 결과 창 (모달 팝업) --- */
     .modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(4, 8, 16, 0.88); align-items: center; justify-content: center;
-      flex-direction: column; z-index: 10; backdrop-filter: blur(4px);
+      z-index: 100; backdrop-filter: blur(6px);
     }
     .modal.active { display: flex; }
-    .modal h2 { font-size: 32px; margin-bottom: 10px; }
-    .modal p { font-size: 18px; margin-bottom: 20px; color: #94a3b8; }
-    .modal button {
-      padding: 12px 24px; font-size: 16px; font-weight: bold;
+
+    .modal-card {
+      background-color: #0d1629; border: 1px solid #1e2c4a; border-radius: 16px;
+      padding: 30px; width: 90%; max-width: 440px; text-align: center;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8); animation: popIn 0.3s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-card h2 { font-size: 30px; margin-bottom: 10px; }
+    .modal-card p { font-size: 16px; margin-bottom: 20px; color: #94a3b8; }
+
+    .modal-leaderboard {
+      background-color: #16223b; border-radius: 10px; padding: 12px;
+      margin-bottom: 22px; max-height: 220px; overflow-y: auto; text-align: left;
+    }
+
+    .modal-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; border-bottom: 1px solid #243456; font-size: 15px;
+    }
+    .modal-row:last-child { border-bottom: none; }
+    .modal-row.rank-1 { color: #facc15; font-weight: bold; background-color: rgba(250, 204, 21, 0.1); border-radius: 6px; }
+
+    .btn-modal {
+      width: 100%; padding: 13px; font-size: 16px; font-weight: bold;
       background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
       color: white; border: none; border-radius: 8px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
     }
+    .btn-modal:hover { filter: brightness(1.1); }
   </style>
 </head>
 <body>
@@ -285,14 +256,11 @@
 
   <!-- 게임 메인 화면 -->
   <div id="game-view" class="game-container hidden">
-    
-    <!-- 좌측 플레이어 목록 패널 -->
     <div class="sidebar">
       <h3>👥 플레이어 현황</h3>
       <div id="player-list" class="player-list-container"></div>
     </div>
 
-    <!-- 우측 보드 & 타이머 -->
     <div class="main-section">
       <div class="top-bar">
         <div class="time-box">⏱️ 남은 시간: <span id="timer">03:00</span></div>
@@ -301,14 +269,16 @@
 
       <div id="board" class="grid"></div>
     </div>
-
   </div>
 
-  <!-- 결과 모달 -->
+  <!-- 결과 모달 팝업 -->
   <div id="modal" class="modal">
-    <h2 id="modal-title">🎉 승리!</h2>
-    <p id="modal-desc">200점을 달성하셨습니다!</p>
-    <button onclick="location.reload()">로비로 이동</button>
+    <div class="modal-card">
+      <h2 id="modal-title">🏆 승리!</h2>
+      <p id="modal-desc">200점을 달성하셨습니다!</p>
+      <div id="modal-leaderboard" class="modal-leaderboard"></div>
+      <button class="btn-modal" onclick="location.reload()">로비로 이동</button>
+    </div>
   </div>
 
 <script>
@@ -328,6 +298,7 @@
   let currentRoomId = "ROOM_1";
   let showIcons = false;
   let activeColors = [];
+  let lastScores = {};
 
   function generateHighContrastColors(count) {
     const colors = [];
@@ -419,6 +390,7 @@
   });
 
   socket.on('updateScores', (scores) => {
+    lastScores = scores;
     const playerListEl = document.getElementById('player-list');
     playerListEl.innerHTML = '';
 
@@ -521,10 +493,29 @@
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modal-title');
     const modalDesc = document.getElementById('modal-desc');
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
 
     modalTitle.innerText = isVictory ? "🏆 승리!" : "💀 게임 종료";
     modalTitle.style.color = isVictory ? "#38bdf8" : "#f87171";
     modalDesc.innerText = message;
+
+    // 최종 순위 리스트 생성
+    modalLeaderboard.innerHTML = '';
+    const sorted = Object.keys(lastScores).map(id => ({
+      id,
+      nickname: lastScores[id].nickname,
+      score: lastScores[id].score
+    })).sort((a, b) => b.score - a.score);
+
+    sorted.forEach((p, idx) => {
+      const row = document.createElement('div');
+      row.className = `modal-row ${idx === 0 ? 'rank-1' : ''}`;
+      row.innerHTML = `
+        <span>${idx + 1}위: ${p.nickname} ${p.id === socket.id ? '(나)' : ''}</span>
+        <span><strong>${p.score}점</strong></span>
+      `;
+      modalLeaderboard.appendChild(row);
+    });
 
     modal.classList.add('active');
   }
