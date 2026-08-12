@@ -66,7 +66,7 @@
     /* --- 게임 메인 레이아웃 --- */
     .game-container {
       display: flex; gap: 20px; align-items: flex-start; justify-content: center;
-      max-width: 1300px; width: 100%;
+      max-width: 1400px; width: 100%;
     }
 
     .sidebar {
@@ -136,43 +136,41 @@
     }
     .btn-lobby:hover { background-color: #30363d; color: #fff; }
 
-    /* 12행 x 22열 (총 264개 타일) */
+    /* 동적 그리드 스타일 (JS에서 행/열 및 타일 크기를 주입함) */
     .grid {
       display: grid;
-      grid-template-columns: repeat(22, 34px);
-      grid-template-rows: repeat(12, 34px);
-      gap: 3px;
+      gap: 2px;
       background-color: #161b22;
-      padding: 10px;
+      padding: 8px;
       border-radius: 12px;
       border: 1px solid #30363d;
     }
 
     .tile {
-      width: 34px; height: 34px; border-radius: 5px; cursor: pointer;
+      border-radius: 4px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700; user-select: none;
+      font-weight: 700; user-select: none;
       transition: transform 0.08s ease, filter 0.08s ease;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
-    .tile:hover { transform: scale(1.12); z-index: 2; filter: brightness(1.1); }
+    .tile:hover { transform: scale(1.15); z-index: 2; filter: brightness(1.15); }
 
     .empty {
-      background-color: #0d1117 !important; border-radius: 5px; cursor: pointer;
-      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+      background-color: #0d1117 !important; border-radius: 4px; cursor: pointer;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
     }
     .empty:hover { background-color: #1c2128 !important; }
 
     .empty.hint-highlight {
       background-color: #d29922 !important;
-      box-shadow: 0 0 15px #d29922, inset 0 0 5px #ffffff;
+      box-shadow: 0 0 12px #d29922, inset 0 0 4px #ffffff;
       animation: hintBlink 0.5s infinite alternate;
       z-index: 5;
     }
 
     @keyframes hintBlink {
       from { opacity: 0.6; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1.1); }
+      to { opacity: 1; transform: scale(1.15); }
     }
 
     .toast-msg {
@@ -235,6 +233,14 @@
     </div>
 
     <div class="form-group">
+      <label for="mode-select">🎮 난이도 모드 선택</label>
+      <select id="mode-select">
+        <option value="normal" selected>일반 모드 (12×22 / 200점 목표)</option>
+        <option value="hard">하드 모드 (20×30 / 500점 목표)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label for="color-select">🎨 색상 개수 선택</label>
       <select id="color-select">
         <option value="8">8개 (매우 쉬움)</option>
@@ -242,6 +248,7 @@
         <option value="16" selected>16개 (보통)</option>
         <option value="20">20개 (어려움)</option>
         <option value="24">24개 (매우 어려움)</option>
+        <option value="32">32개 (지옥 난이도)</option>
       </select>
     </div>
 
@@ -263,7 +270,7 @@
       </div>
     </div>
 
-    <button class="btn-start" onclick="startGame()">게임 참가하기</button>
+    <button class="btn-start" onclick="startGame()">게임 시작하기</button>
   </div>
 
   <!-- 게임 메인 화면 -->
@@ -290,7 +297,7 @@
   <div id="modal" class="modal">
     <div class="modal-card">
       <h2 id="modal-title">🏆 승리!</h2>
-      <p id="modal-desc">200점을 달성하셨습니다!</p>
+      <p id="modal-desc">목표 점수를 달성하셨습니다!</p>
       <div id="modal-leaderboard" class="modal-leaderboard"></div>
       <button class="btn-modal" onclick="resetToLobby()">로비로 이동</button>
     </div>
@@ -298,8 +305,6 @@
 
 <script>
   const socket = io();
-  const ROWS = 12;
-  const COLS = 22;
 
   const SYMBOLS = Array.from({length: 32}, (_, i) => (i + 1).toString());
 
@@ -309,6 +314,8 @@
   let showIcons = true;
   let activeColors = [];
   let lastScores = {};
+  
+  let currentConfig = { rows: 12, cols: 22, winScore: 200 };
 
   let hintSeconds = 60;
   let hintTimer = null;
@@ -317,8 +324,8 @@
     const colors = [];
     for (let i = 0; i < count; i++) {
       const hue = Math.floor((360 / count) * i);
-      const sat = 45 + (i % 3) * 5;
-      const light = 44 + (i % 2) * 12;
+      const sat = 50 + (i % 3) * 5;
+      const light = 42 + (i % 2) * 12;
 
       const textColor = light > 52 ? '#0f172a' : '#ffffff';
 
@@ -413,6 +420,7 @@
     initAudio();
     const nickname = document.getElementById('nickname-input').value.trim() || "익명";
     currentRoomId = document.getElementById('room-input').value.trim() || "ROOM_1";
+    const selectedMode = document.getElementById('mode-select').value;
     const selectedColorCount = parseInt(document.getElementById('color-select').value, 10);
     const timeLimit = parseInt(document.getElementById('time-select').value, 10);
     showIcons = document.getElementById('icon-toggle').checked;
@@ -423,7 +431,8 @@
       roomId: currentRoomId,
       colorCount: selectedColorCount,
       timeLimit,
-      nickname
+      nickname,
+      mode: selectedMode
     });
   }
 
@@ -431,9 +440,10 @@
     location.reload();
   }
 
-  socket.on('initMyBoard', ({ board: myBoard, timeRemaining: serverTime }) => {
+  socket.on('initMyBoard', ({ board: myBoard, timeRemaining: serverTime, config }) => {
     board = myBoard;
     timeRemaining = serverTime;
+    currentConfig = config;
 
     document.getElementById('lobby-view').classList.add('hidden');
     document.getElementById('game-view').classList.remove('hidden');
@@ -474,7 +484,7 @@
     }
   });
 
-  socket.on('updateScores', (scores) => {
+  socket.on('updateScores', ({ scores, winScore }) => {
     lastScores = scores;
     const playerListEl = document.getElementById('player-list');
     playerListEl.innerHTML = '';
@@ -496,7 +506,7 @@
           <span class="nickname" title="${player.nickname}">${player.nickname}</span>
           ${isMe ? '<span class="me-tag">(나)</span>' : ''}
         </div>
-        <div class="score-text">${player.score} / 200</div>
+        <div class="score-text">${player.score} / ${winScore}</div>
       `;
 
       playerListEl.appendChild(card);
@@ -510,17 +520,27 @@
 
   socket.on('gameOver', ({ winnerId, reason }) => {
     const isWinner = winnerId === socket.id;
-    let msg = isWinner ? `🏆 200점을 먼저 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 달성했습니다.` : `⏰ ${reason}`);
+    let msg = isWinner ? `🏆 목표 점수를 먼저 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 달성했습니다.` : `⏰ ${reason}`);
     endGame(isWinner, msg);
   });
 
   function buildBoardElements() {
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+
+    const tileSize = currentConfig.cols === 30 ? 24 : 34;
+    const fontSize = currentConfig.cols === 30 ? 11 : 13;
+
+    boardEl.style.gridTemplateColumns = `repeat(${currentConfig.cols}, ${tileSize}px)`;
+    boardEl.style.gridTemplateRows = `repeat(${currentConfig.rows}, ${tileSize}px)`;
+
+    for (let r = 0; r < currentConfig.rows; r++) {
+      for (let c = 0; c < currentConfig.cols; c++) {
         const tile = document.createElement('div');
         tile.id = `tile-${r}-${c}`;
+        tile.style.width = `${tileSize}px`;
+        tile.style.height = `${tileSize}px`;
+        tile.style.fontSize = `${fontSize}px`;
         tile.addEventListener('click', () => handleTileClick(r, c));
         boardEl.appendChild(tile);
       }
@@ -529,8 +549,8 @@
 
   function renderBoard() {
     clearHintHighlights();
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < currentConfig.rows; r++) {
+      for (let c = 0; c < currentConfig.cols; c++) {
         const tile = document.getElementById(`tile-${r}-${c}`);
         if (!tile) continue;
         const colorIdx = board[r][c];
