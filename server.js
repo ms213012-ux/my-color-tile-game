@@ -8,13 +8,12 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 맵 크기 더 확대 (가로 36 x 세로 22)
 const ROWS = 22;
 const COLS = 36;
 
 const rooms = {};
 
-// 맞출 수 있는 위치(힌트)가 존재하는지 탐색
+// 맞출 수 있는 위치(힌트) 탐색
 function findValidMove(board) {
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   
@@ -47,7 +46,7 @@ function findValidMove(board) {
   return null;
 }
 
-// 더 이상 움직일 수 없으면 타일만 무작위 재배치
+// 더 이상 움직일 수 없으면 타일 셔플
 function ensureValidBoard(board) {
   let attempts = 0;
   while (!findValidMove(board) && attempts < 100) {
@@ -73,14 +72,14 @@ function ensureValidBoard(board) {
   }
 }
 
-// 맵 생성 시 약 15%의 빈 공간(-1)을 기본 배치
+// 시작 시 약 28%의 빈 공간(-1) 생성으로 플레이 여유 확보
 function generateBoard(colorCount) {
   const board = [];
   for (let r = 0; r < ROWS; r++) {
     const row = [];
     for (let c = 0; c < COLS; c++) {
-      if (Math.random() < 0.15) {
-        row.push(-1); // 시작부터 빈 공간 생성
+      if (Math.random() < 0.28) {
+        row.push(-1);
       } else {
         row.push(Math.floor(Math.random() * colorCount));
       }
