@@ -8,12 +8,13 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-const ROWS = 22;
-const COLS = 36;
+// 총 264칸 (12행 x 22열: 색상 타일 198개, 빈 공간 66개 = 정확히 25%)
+const ROWS = 12;
+const COLS = 22;
+const TARGET_TILE_COUNT = 198; 
 
 const rooms = {};
 
-// 맞출 수 있는 위치(힌트) 탐색
 function findValidMove(board) {
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   
@@ -46,10 +47,21 @@ function findValidMove(board) {
   return null;
 }
 
-// 더 이상 움직일 수 없으면 타일 셔플
-function ensureValidBoard(board) {
-  let attempts = 0;
-  while (!findValidMove(board) && attempts < 100) {
+function countRemainingTiles(board) {
+  let count = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== -1) count++;
+    }
+  }
+  return count;
+}
+
+function ensureValidBoard(board, colorCount) {
+  let remaining = countRemainingTiles(board);
+
+  // 타일이 30개 미만이거나 맞출 수가 없으면 198개(25% 빈 공간)로 리필
+  if (remaining < 30 || !findValidMove(board)) {
     const tiles = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -57,11 +69,43 @@ function ensureValidBoard(board) {
       }
     }
 
+    while (tiles.length < TARGET_TILE_COUNT) {
+      tiles.push(Math.floor(Math.random() * colorCount));
+    }
+
     for (let i = tiles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
     }
 
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        board[r][c] = -1;
+      }
+    }
+
+    let placed = 0;
+    while (placed < TARGET_TILE_COUNT) {
+      const r = Math.floor(Math.random() * ROWS);
+      const c = Math.floor(Math.random() * COLS);
+      if (board[r][c] === -1) {
+        board[r][c] = tiles[placed++];
+      }
+    }
+  }
+
+  let attempts = 0;
+  while (!findValidMove(board) && attempts < 50) {
+    const tiles = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (board[r][c] !== -1) tiles.push(board[r][c]);
+      }
+    }
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+    }
     let idx = 0;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -72,21 +116,24 @@ function ensureValidBoard(board) {
   }
 }
 
-// 시작 시 약 28%의 빈 공간(-1) 생성으로 플레이 여유 확보
 function generateBoard(colorCount) {
-  const board = [];
-  for (let r = 0; r < ROWS; r++) {
-    const row = [];
-    for (let c = 0; c < COLS; c++) {
-      if (Math.random() < 0.28) {
-        row.push(-1);
-      } else {
-        row.push(Math.floor(Math.random() * colorCount));
-      }
-    }
-    board.push(row);
+  const board = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
+  const tiles = [];
+
+  for (let i = 0; i < TARGET_TILE_COUNT; i++) {
+    tiles.push(Math.floor(Math.random() * colorCount));
   }
-  ensureValidBoard(board);
+
+  let placed = 0;
+  while (placed < TARGET_TILE_COUNT) {
+    const r = Math.floor(Math.random() * ROWS);
+    const c = Math.floor(Math.random() * COLS);
+    if (board[r][c] === -1) {
+      board[r][c] = tiles[placed++];
+    }
+  }
+
+  ensureValidBoard(board, colorCount);
   return board;
 }
 
@@ -136,7 +183,6 @@ function broadcastScores(roomId) {
 }
 
 io.on('connection', (socket) => {
-
   socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname }) => {
     socket.join(roomId);
 
@@ -148,7 +194,7 @@ io.on('connection', (socket) => {
       const selectedTime = timeLimit || 86400;
 
       rooms[roomId] = {
-        colorCount: colorCount || 24,
+        colorCount: colorCount || 16,
         timeLimit: selectedTime,
         timeRemaining: selectedTime,
         players: {},
@@ -197,8 +243,10 @@ io.on('connection', (socket) => {
     }
 
     let shuffled = false;
-    if (!findValidMove(player.board)) {
-      ensureValidBoard(player.board);
+    const oldTileCount = countRemainingTiles(player.board);
+    
+    ensureValidBoard(player.board, room.colorCount);
+    if (countRemainingTiles(player.board) > oldTileCount) {
       shuffled = true;
     }
 
