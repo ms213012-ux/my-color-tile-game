@@ -58,11 +58,36 @@ function countRemainingTiles(board, rows, cols) {
   return count;
 }
 
+function generateBoard(config, colorCount) {
+  const { rows, cols, targetTileCount } = config;
+  const board = Array.from({ length: rows }, () => Array(cols).fill(-1));
+  const tiles = [];
+
+  for (let i = 0; i < targetTileCount; i++) {
+    tiles.push(Math.floor(Math.random() * colorCount));
+  }
+
+  let placed = 0;
+  while (placed < targetTileCount) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    if (board[r][c] === -1) {
+      board[r][c] = tiles[placed++];
+    }
+  }
+
+  ensureValidBoard(board, config, colorCount);
+  return board;
+}
+
 function ensureValidBoard(board, config, colorCount) {
   const { rows, cols, targetTileCount, refillThreshold } = config;
   let remaining = countRemainingTiles(board, rows, cols);
+  let wasChanged = false;
 
+  // 1. 타일 부족 또는 이동 가능한 수 없음 -> 타일 리필
   if (remaining < refillThreshold || !findValidMove(board, rows, cols)) {
+    wasChanged = true;
     const tiles = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -95,8 +120,10 @@ function ensureValidBoard(board, config, colorCount) {
     }
   }
 
+  // 2. 유효한 수가 나올 때까지 보드 셔플 (최대 50회)
   let attempts = 0;
   while (!findValidMove(board, rows, cols) && attempts < 50) {
+    wasChanged = true;
     const tiles = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -115,28 +142,19 @@ function ensureValidBoard(board, config, colorCount) {
     }
     attempts++;
   }
-}
 
-function generateBoard(config, colorCount) {
-  const { rows, cols, targetTileCount } = config;
-  const board = Array.from({ length: rows }, () => Array(cols).fill(-1));
-  const tiles = [];
-
-  for (let i = 0; i < targetTileCount; i++) {
-    tiles.push(Math.floor(Math.random() * colorCount));
-  }
-
-  let placed = 0;
-  while (placed < targetTileCount) {
-    const r = Math.floor(Math.random() * rows);
-    const c = Math.floor(Math.random() * cols);
-    if (board[r][c] === -1) {
-      board[r][c] = tiles[placed++];
+  // 3. Fallback: 50회 시도 후에도 유효 수가 없으면 보드 완전 재생성
+  if (!findValidMove(board, rows, cols)) {
+    wasChanged = true;
+    const newBoard = generateBoard(config, colorCount);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        board[r][c] = newBoard[r][c];
+      }
     }
   }
 
-  ensureValidBoard(board, config, colorCount);
-  return board;
+  return wasChanged;
 }
 
 function checkAndRemoveTiles(board, r, c, rows, cols) {
@@ -198,20 +216,26 @@ io.on('connection', (socket) => {
 
       const selectedMode = MODE_CONFIG[mode] ? mode : 'normal';
       const config = MODE_CONFIG[selectedMode];
-      const selectedTime = timeLimit || 86400;
+
+      // 파라미터 sanitization
+      const safeColorCount = Math.min(Math.max(parseInt(colorCount) || 16, 2), 20);
+      const safeTimeLimit = Math.min(Math.max(parseInt(timeLimit) || 86400, 10), 86400);
 
       rooms[roomId] = {
         mode: selectedMode,
         config,
-        colorCount: colorCount || 16,
-        timeLimit: selectedTime,
-        timeRemaining: selectedTime,
+        colorCount: safeColorCount,
+        timeLimit: safeTimeLimit,
+        timeRemaining: safeTimeLimit,
         players: {},
         timer: null
       };
 
       rooms[roomId].timer = setInterval(() => {
-        if (!rooms[roomId]) return;
+        if (!rooms[roomId]) {
+          clearInterval(rooms[roomId]?.timer);
+          return;
+        }
 
         if (rooms[roomId].timeRemaining > 0) {
           rooms[roomId].timeRemaining--;
@@ -244,7 +268,15 @@ io.on('connection', (socket) => {
     if (!room || room.timeRemaining <= 0) return;
 
     const player = room.players[socket.id];
-    if (!player || player.board[r][c] !== -1) return;
+
+    // 좌표 타입 및 범위 유효성 검사 (서버 Down 방지)
+    if (
+      !player ||
+      typeof r !== 'number' || typeof c !== 'number' ||
+      r < 0 || r >= room.config.rows ||
+      c < 0 || c >= room.config.cols ||
+      player.board[r][c] !== -1
+    ) return;
 
     const removedCount = checkAndRemoveTiles(player.board, r, c, room.config.rows, room.config.cols);
     const hit = removedCount > 0;
@@ -253,13 +285,8 @@ io.on('connection', (socket) => {
       player.score += removedCount;
     }
 
-    let shuffled = false;
-    const oldTileCount = countRemainingTiles(player.board, room.config.rows, room.config.cols);
-    
-    ensureValidBoard(player.board, room.config, room.colorCount);
-    if (countRemainingTiles(player.board, room.config.rows, room.config.cols) > oldTileCount) {
-      shuffled = true;
-    }
+    // 보드 셔플/리필 상태 확인 및 판 반영
+    const shuffled = ensureValidBoard(player.board, room.config, room.colorCount);
 
     socket.emit('updateMyBoard', {
       board: player.board,
