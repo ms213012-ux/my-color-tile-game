@@ -119,11 +119,32 @@
 
     .top-bar {
       display: flex; justify-content: space-between; align-items: center;
-      width: 100%; margin-bottom: 12px;
+      width: 100%; margin-bottom: 12px; gap: 10px;
     }
+
+    .left-tools { display: flex; align-items: center; gap: 15px; }
 
     .time-box { font-size: 18px; font-weight: bold; color: #38bdf8; }
     .time-warning { color: #ef4444; animation: blink 1s infinite; }
+
+    /* 힌트 버튼 CSS */
+    .btn-hint {
+      padding: 8px 16px; background-color: #334155; color: #64748b;
+      border: 1px solid #475569; border-radius: 6px; font-size: 14px;
+      font-weight: bold; cursor: not-allowed; transition: all 0.2s;
+    }
+    .btn-hint.active {
+      background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+      color: #ffffff; border-color: #f59e0b; cursor: pointer;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+      animation: pulse-hint 1.5s infinite;
+    }
+
+    @keyframes pulse-hint {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
 
     @keyframes blink { 50% { opacity: 0.5; } }
 
@@ -133,7 +154,6 @@
     }
     .btn-lobby:hover { background-color: #334155; color: #fff; }
 
-    /* 타일 크기 36px, 30x20 그리드 설정 */
     .grid {
       display: grid;
       grid-template-columns: repeat(30, 36px);
@@ -162,6 +182,26 @@
       box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
     }
     .empty:hover { background-color: #0a101d !important; }
+
+    /* 힌트 강조 애니메이션 */
+    .empty.hint-highlight {
+      background-color: #f59e0b !important;
+      box-shadow: 0 0 15px #f59e0b;
+      animation: hintBlink 0.6s infinite alternate;
+    }
+
+    @keyframes hintBlink {
+      from { opacity: 0.4; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1.1); }
+    }
+
+    /* 알림 메시지 토스트 */
+    .toast-msg {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: #f59e0b; color: #000; font-weight: bold; padding: 12px 24px;
+      border-radius: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 200;
+      display: none; animation: popIn 0.3s ease;
+    }
 
     /* --- 결과 창 --- */
     .modal {
@@ -208,9 +248,11 @@
 </head>
 <body>
 
+  <div id="toast" class="toast-msg">🔀 맞출 타일이 없어 맵을 새로 섞었습니다!</div>
+
   <!-- 로비 화면 -->
   <div id="lobby-view" class="lobby-card">
-    <h1>🎨 컬러 타일 천후개</h1>
+    <h1>🎨 컬러 타일 천후개조</h1>
     
     <div class="form-group">
       <label for="nickname-input">👤 닉네임 설정</label>
@@ -264,7 +306,10 @@
 
     <div class="main-section">
       <div class="top-bar">
-        <div class="time-box">⏱️ 남은 시간: <span id="timer">--:--</span></div>
+        <div class="left-tools">
+          <div class="time-box">⏱️ 남은 시간: <span id="timer">--:--</span></div>
+          <button id="btn-hint" class="btn-hint" onclick="useHint()">💡 힌트 (60초)</button>
+        </div>
         <button class="btn-lobby" onclick="resetToLobby()">로비로 나가기</button>
       </div>
 
@@ -300,6 +345,10 @@
   let showIcons = false;
   let activeColors = [];
   let lastScores = {};
+
+  // 힌트 타이머 (60초 미득점 시 힌트 활성화)
+  let hintSeconds = 60;
+  let hintTimer = null;
 
   function generateHighContrastColors(count) {
     const colors = [];
@@ -352,6 +401,46 @@
     osc.stop(audioCtx.currentTime + 0.35);
   }
 
+  function resetHintTimer() {
+    clearInterval(hintTimer);
+    hintSeconds = 60;
+    const btnHint = document.getElementById('btn-hint');
+    btnHint.classList.remove('active');
+    btnHint.innerText = `💡 힌트 (${hintSeconds}초)`;
+
+    clearHintHighlights();
+
+    hintTimer = setInterval(() => {
+      hintSeconds--;
+      if (hintSeconds <= 0) {
+        clearInterval(hintTimer);
+        btnHint.classList.add('active');
+        btnHint.innerText = "💡 힌트 보기!";
+      } else {
+        btnHint.innerText = `💡 힌트 (${hintSeconds}초)`;
+      }
+    }, 1000);
+  }
+
+  function useHint() {
+    const btnHint = document.getElementById('btn-hint');
+    if (!btnHint.classList.contains('active')) return;
+    socket.emit('getHint', { roomId: currentRoomId });
+  }
+
+  function clearHintHighlights() {
+    document.querySelectorAll('.hint-highlight').forEach(el => {
+      el.classList.remove('hint-highlight');
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2500);
+  }
+
   function startGame() {
     initAudio();
     const nickname = document.getElementById('nickname-input').value.trim() || "익명";
@@ -385,13 +474,31 @@
     buildBoardElements();
     renderBoard();
     updateTimerDisplay();
+    resetHintTimer();
   });
 
-  socket.on('updateMyBoard', ({ board: myBoard, hit }) => {
+  socket.on('updateMyBoard', ({ board: myBoard, hit, shuffled }) => {
     board = myBoard;
     renderBoard();
-    if (hit) playCorrectSound();
-    else playWrongSound();
+
+    if (hit) {
+      playCorrectSound();
+      resetHintTimer(); // 득점 시 힌트 타이머 리셋
+    } else {
+      playWrongSound();
+    }
+
+    if (shuffled) {
+      showToast('🔀 더 이상 맞출 타일이 없어 맵이 자동 셔플되었습니다!');
+    }
+  });
+
+  socket.on('receiveHint', (hintPos) => {
+    clearHintHighlights();
+    if (hintPos) {
+      const tile = document.getElementById(`tile-${hintPos.r}-${hintPos.c}`);
+      if (tile) tile.classList.add('hint-highlight');
+    }
   });
 
   socket.on('updateScores', (scores) => {
@@ -448,6 +555,7 @@
   }
 
   function renderBoard() {
+    clearHintHighlights();
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const tile = document.getElementById(`tile-${r}-${c}`);
@@ -495,6 +603,7 @@
   }
 
   function endGame(isVictory, message) {
+    clearInterval(hintTimer);
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modal-title');
     const modalDesc = document.getElementById('modal-desc');
