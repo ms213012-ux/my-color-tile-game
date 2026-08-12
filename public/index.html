@@ -127,21 +127,23 @@
     .time-box { font-size: 18px; font-weight: bold; color: #38bdf8; }
     .time-warning { color: #ef4444; animation: blink 1s infinite; }
 
+    /* 힌트 버튼 스타일 */
     .btn-hint {
-      padding: 8px 16px; background-color: #334155; color: #64748b;
-      border: 1px solid #475569; border-radius: 6px; font-size: 14px;
-      font-weight: bold; cursor: not-allowed; transition: all 0.2s;
+      padding: 8px 16px; background-color: #1e293b; color: #94a3b8;
+      border: 1px solid #334155; border-radius: 6px; font-size: 14px;
+      font-weight: bold; cursor: pointer; transition: all 0.2s;
     }
+    .btn-hint:hover { background-color: #334155; color: #fff; }
     .btn-hint.active {
       background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
       color: #ffffff; border-color: #f59e0b; cursor: pointer;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-      animation: pulse-hint 1.5s infinite;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+      animation: pulse-hint 1.2s infinite;
     }
 
     @keyframes pulse-hint {
       0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+      50% { transform: scale(1.06); }
       100% { transform: scale(1); }
     }
 
@@ -153,7 +155,6 @@
     }
     .btn-lobby:hover { background-color: #334155; color: #fff; }
 
-    /* 타일 크기 32px, 36x22 그리드 설정 */
     .grid {
       display: grid;
       grid-template-columns: repeat(36, 32px);
@@ -185,13 +186,14 @@
 
     .empty.hint-highlight {
       background-color: #f59e0b !important;
-      box-shadow: 0 0 15px #f59e0b;
-      animation: hintBlink 0.6s infinite alternate;
+      box-shadow: 0 0 20px #f59e0b, inset 0 0 10px #ffffff;
+      animation: hintBlink 0.5s infinite alternate;
+      z-index: 5;
     }
 
     @keyframes hintBlink {
-      from { opacity: 0.4; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1.1); }
+      from { opacity: 0.5; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1.15); }
     }
 
     .toast-msg {
@@ -246,7 +248,7 @@
 </head>
 <body>
 
-  <div id="toast" class="toast-msg">🔀 맞출 타일이 없어 맵을 새로 섞었습니다!</div>
+  <div id="toast" class="toast-msg"></div>
 
   <!-- 로비 화면 -->
   <div id="lobby-view" class="lobby-card">
@@ -421,7 +423,10 @@
 
   function useHint() {
     const btnHint = document.getElementById('btn-hint');
-    if (!btnHint.classList.contains('active')) return;
+    if (!btnHint.classList.contains('active')) {
+      showToast(`⏳ 힌트는 미득점 상태로 ${hintSeconds}초 후에 활성화됩니다!`);
+      return;
+    }
     socket.emit('getHint', { roomId: currentRoomId });
   }
 
@@ -486,7 +491,7 @@
     }
 
     if (shuffled) {
-      showToast('🔀 더 이상 맞출 타일이 없어 맵이 자동 셔플되었습니다!');
+      showToast('🔀 맞출 타일이 없어 맵을 새로 섞었습니다!');
     }
   });
 
@@ -494,7 +499,12 @@
     clearHintHighlights();
     if (hintPos) {
       const tile = document.getElementById(`tile-${hintPos.r}-${hintPos.c}`);
-      if (tile) tile.classList.add('hint-highlight');
+      if (tile) {
+        tile.classList.add('hint-highlight');
+        showToast('💡 황금색으로 반짝이는 빈칸을 클릭하세요!');
+      }
+    } else {
+      showToast('💡 맞출 자리가 없어 맵이 곧 섞입니다.');
     }
   });
 
