@@ -9,9 +9,9 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
-      background-color: #070c18;
-      color: #ffffff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0d1117;
+      color: #e6edf3;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -24,96 +24,81 @@
 
     /* --- 로비 화면 --- */
     .lobby-card {
-      background-color: #0d1629;
-      border: 1px solid #1e2c4a;
+      background-color: #161b22;
+      border: 1px solid #30363d;
       border-radius: 16px;
       padding: 30px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 12px 35px rgba(0,0,0,0.8);
+      box-shadow: 0 12px 35px rgba(0,0,0,0.6);
       text-align: center;
     }
 
-    .lobby-card h1 { color: #38bdf8; font-size: 28px; margin-bottom: 25px; }
+    .lobby-card h1 { color: #58a6ff; font-size: 26px; margin-bottom: 25px; }
 
     .form-group { margin-bottom: 20px; text-align: left; }
     .form-group label {
-      display: block; font-size: 15px; font-weight: bold; margin-bottom: 8px; color: #94a3b8;
+      display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #8b949e;
     }
     .form-group input[type="text"], .form-group select {
-      width: 100%; padding: 12px; background-color: #16223b; color: #fff;
-      border: 1px solid #243456; border-radius: 8px; font-size: 16px; outline: none;
+      width: 100%; padding: 12px; background-color: #21262d; color: #f0f6fc;
+      border: 1px solid #30363d; border-radius: 8px; font-size: 15px; outline: none;
     }
-    .form-group input[type="text"]:focus, .form-group select:focus { border-color: #38bdf8; }
+    .form-group input[type="text"]:focus, .form-group select:focus { border-color: #58a6ff; }
 
     .checkbox-group {
       display: flex; align-items: center; justify-content: space-between;
-      background-color: #16223b; padding: 12px 15px; border-radius: 8px;
-      border: 1px solid #243456; cursor: pointer;
+      background-color: #21262d; padding: 12px 15px; border-radius: 8px;
+      border: 1px solid #30363d; cursor: pointer;
     }
-    .checkbox-group label { margin-bottom: 0; cursor: pointer; }
+    .checkbox-group label { margin-bottom: 0; cursor: pointer; color: #c9d1d9; }
     .checkbox-group input[type="checkbox"] {
-      width: 20px; height: 20px; accent-color: #38bdf8; cursor: pointer;
+      width: 18px; height: 18px; accent-color: #58a6ff; cursor: pointer;
     }
 
     .btn-start {
-      width: 100%; padding: 14px; font-size: 18px; font-weight: bold;
-      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-      color: white; border: none; border-radius: 8px; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); transition: transform 0.1s, filter 0.2s;
+      width: 100%; padding: 14px; font-size: 17px; font-weight: bold;
+      background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); transition: filter 0.2s;
     }
-    .btn-start:hover { filter: brightness(1.1); }
-    .btn-start:active { transform: scale(0.98); }
+    .btn-start:hover { filter: brightness(1.15); }
 
     /* --- 게임 메인 레이아웃 --- */
     .game-container {
-      display: flex;
-      gap: 20px;
-      align-items: flex-start;
-      justify-content: center;
-      max-width: 1600px;
-      width: 100%;
+      display: flex; gap: 20px; align-items: flex-start; justify-content: center;
+      max-width: 1300px; width: 100%;
     }
 
     .sidebar {
-      width: 240px;
-      background-color: #0d1629;
-      border: 1px solid #1e2c4a;
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      flex-shrink: 0;
+      width: 220px; background-color: #161b22; border: 1px solid #30363d;
+      border-radius: 14px; padding: 16px; flex-shrink: 0;
     }
 
     .sidebar h3 {
-      font-size: 18px; color: #38bdf8; margin-bottom: 15px;
-      padding-bottom: 10px; border-bottom: 1px solid #1e2c4a;
+      font-size: 16px; color: #58a6ff; margin-bottom: 15px;
+      padding-bottom: 10px; border-bottom: 1px solid #30363d;
     }
 
-    .player-list-container {
-      display: flex; flex-direction: column; gap: 10px;
-      max-height: 700px; overflow-y: auto;
-    }
+    .player-list-container { display: flex; flex-direction: column; gap: 10px; }
 
     .player-card {
-      background-color: #16223b; border: 1px solid #243456;
-      border-radius: 10px; padding: 10px 12px;
+      background-color: #21262d; border: 1px solid #30363d;
+      border-radius: 8px; padding: 10px 12px;
       display: flex; align-items: center; justify-content: space-between;
     }
-
-    .player-card.my-card { border-color: #38bdf8; background-color: #1e3a5f; }
+    .player-card.my-card { border-color: #58a6ff; background-color: #1f293e; }
 
     .player-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
     .rank-badge {
-      font-size: 12px; font-weight: bold; background-color: #334155;
-      color: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+      font-size: 11px; font-weight: bold; background-color: #30363d;
+      color: #8b949e; padding: 2px 6px; border-radius: 4px;
     }
     .nickname {
-      font-size: 14px; font-weight: bold; color: #e2e8f0;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;
+      font-size: 14px; font-weight: 600; color: #c9d1d9;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;
     }
-    .me-tag { font-size: 11px; color: #38bdf8; }
-    .score-text { font-size: 14px; font-weight: bold; color: #facc15; }
+    .me-tag { font-size: 11px; color: #58a6ff; }
+    .score-text { font-size: 14px; font-weight: bold; color: #d29922; }
 
     .main-section { display: flex; flex-direction: column; align-items: flex-end; }
 
@@ -124,126 +109,111 @@
 
     .left-tools { display: flex; align-items: center; gap: 15px; }
 
-    .time-box { font-size: 18px; font-weight: bold; color: #38bdf8; }
-    .time-warning { color: #ef4444; animation: blink 1s infinite; }
+    .time-box { font-size: 16px; font-weight: 600; color: #58a6ff; }
+    .time-warning { color: #f85149; animation: blink 1s infinite; }
 
-    /* 힌트 버튼 스타일 */
     .btn-hint {
-      padding: 8px 16px; background-color: #1e293b; color: #94a3b8;
-      border: 1px solid #334155; border-radius: 6px; font-size: 14px;
-      font-weight: bold; cursor: pointer; transition: all 0.2s;
+      padding: 8px 16px; background-color: #21262d; color: #8b949e;
+      border: 1px solid #30363d; border-radius: 6px; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
     }
-    .btn-hint:hover { background-color: #334155; color: #fff; }
     .btn-hint.active {
-      background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
-      color: #ffffff; border-color: #f59e0b; cursor: pointer;
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+      background: #d29922; color: #0d1117; border-color: #f1e05a;
+      box-shadow: 0 0 10px rgba(210, 153, 34, 0.5);
       animation: pulse-hint 1.2s infinite;
     }
 
     @keyframes pulse-hint {
       0% { transform: scale(1); }
-      50% { transform: scale(1.06); }
+      50% { transform: scale(1.05); }
       100% { transform: scale(1); }
     }
-
     @keyframes blink { 50% { opacity: 0.5; } }
 
     .btn-lobby {
-      padding: 8px 16px; background-color: #1e2c4a; color: #94a3b8;
-      border: 1px solid #334155; border-radius: 6px; cursor: pointer; font-size: 14px;
+      padding: 8px 16px; background-color: #21262d; color: #8b949e;
+      border: 1px solid #30363d; border-radius: 6px; cursor: pointer; font-size: 13px;
     }
-    .btn-lobby:hover { background-color: #334155; color: #fff; }
+    .btn-lobby:hover { background-color: #30363d; color: #fff; }
 
+    /* 12행 x 22열 (총 264개 타일) */
     .grid {
       display: grid;
-      grid-template-columns: repeat(36, 32px);
-      grid-template-rows: repeat(22, 32px);
+      grid-template-columns: repeat(22, 34px);
+      grid-template-rows: repeat(12, 34px);
       gap: 3px;
-      background-color: #0a1326;
+      background-color: #161b22;
       padding: 10px;
-      border-radius: 14px;
-      border: 3px solid #14213d;
-      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 15px 35px rgba(0, 0, 0, 0.7);
+      border-radius: 12px;
+      border: 1px solid #30363d;
     }
 
     .tile {
-      width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+      width: 34px; height: 34px; border-radius: 5px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: bold; color: rgba(255, 255, 255, 0.95);
-      text-shadow: 0 1px 2px rgba(0,0,0,0.7); user-select: none;
+      font-size: 13px; font-weight: 700; user-select: none;
       transition: transform 0.08s ease, filter 0.08s ease;
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 2px 4px rgba(0, 0, 0, 0.4);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
-
-    .tile:hover { transform: scale(1.15); z-index: 2; filter: brightness(1.2); }
+    .tile:hover { transform: scale(1.12); z-index: 2; filter: brightness(1.1); }
 
     .empty {
-      background-color: #040810 !important; border-radius: 6px; cursor: pointer;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+      background-color: #0d1117 !important; border-radius: 5px; cursor: pointer;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
     }
-    .empty:hover { background-color: #0d1930 !important; }
+    .empty:hover { background-color: #1c2128 !important; }
 
     .empty.hint-highlight {
-      background-color: #f59e0b !important;
-      box-shadow: 0 0 20px #f59e0b, inset 0 0 10px #ffffff;
+      background-color: #d29922 !important;
+      box-shadow: 0 0 15px #d29922, inset 0 0 5px #ffffff;
       animation: hintBlink 0.5s infinite alternate;
       z-index: 5;
     }
 
     @keyframes hintBlink {
-      from { opacity: 0.5; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1.15); }
+      from { opacity: 0.6; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1.1); }
     }
 
     .toast-msg {
       position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      background: #f59e0b; color: #000; font-weight: bold; padding: 12px 24px;
-      border-radius: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 200;
-      display: none; animation: popIn 0.3s ease;
+      background: #d29922; color: #0d1117; font-weight: bold; padding: 10px 20px;
+      border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 200;
+      display: none; font-size: 14px;
     }
 
     /* --- 결과 창 --- */
     .modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(4, 8, 16, 0.88); align-items: center; justify-content: center;
-      z-index: 100; backdrop-filter: blur(6px);
+      background: rgba(13, 17, 23, 0.85); align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(4px);
     }
     .modal.active { display: flex; }
 
     .modal-card {
-      background-color: #0d1629; border: 1px solid #1e2c4a; border-radius: 16px;
-      padding: 30px; width: 90%; max-width: 440px; text-align: center;
-      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8); animation: popIn 0.3s ease;
+      background-color: #161b22; border: 1px solid #30363d; border-radius: 14px;
+      padding: 28px; width: 90%; max-width: 400px; text-align: center;
     }
 
-    @keyframes popIn {
-      from { transform: scale(0.8); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    .modal-card h2 { font-size: 30px; margin-bottom: 10px; }
-    .modal-card p { font-size: 16px; margin-bottom: 20px; color: #94a3b8; }
+    .modal-card h2 { font-size: 26px; margin-bottom: 8px; }
+    .modal-card p { font-size: 14px; margin-bottom: 18px; color: #8b949e; }
 
     .modal-leaderboard {
-      background-color: #16223b; border-radius: 10px; padding: 12px;
-      margin-bottom: 22px; max-height: 220px; overflow-y: auto; text-align: left;
+      background-color: #21262d; border-radius: 8px; padding: 10px;
+      margin-bottom: 20px; max-height: 200px; overflow-y: auto; text-align: left;
     }
 
     .modal-row {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 12px; border-bottom: 1px solid #243456; font-size: 15px;
+      padding: 8px 10px; border-bottom: 1px solid #30363d; font-size: 14px;
     }
     .modal-row:last-child { border-bottom: none; }
-    .modal-row.rank-1 { color: #facc15; font-weight: bold; background-color: rgba(250, 204, 21, 0.1); border-radius: 6px; }
+    .modal-row.rank-1 { color: #d29922; font-weight: bold; }
 
     .btn-modal {
-      width: 100%; padding: 13px; font-size: 16px; font-weight: bold;
-      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-      color: white; border: none; border-radius: 8px; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+      width: 100%; padding: 12px; font-size: 15px; font-weight: bold;
+      background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer;
     }
-    .btn-modal:hover { filter: brightness(1.1); }
   </style>
 </head>
 <body>
@@ -260,19 +230,18 @@
     </div>
 
     <div class="form-group">
-      <label for="room-input">🔑 방 코드 (친구와 같은 코드로 접속)</label>
+      <label for="room-input">🔑 방 코드</label>
       <input type="text" id="room-input" value="ROOM_1" placeholder="예: ROOM_123">
     </div>
 
     <div class="form-group">
       <label for="color-select">🎨 색상 개수 선택</label>
       <select id="color-select">
+        <option value="8">8개 (매우 쉬움)</option>
         <option value="12">12개 (쉬움)</option>
-        <option value="16">16개 (보통)</option>
+        <option value="16" selected>16개 (보통)</option>
         <option value="20">20개 (어려움)</option>
-        <option value="24" selected>24개 (추천)</option>
-        <option value="28">28개 (매우 어려움)</option>
-        <option value="32">32개 (극악)</option>
+        <option value="24">24개 (매우 어려움)</option>
       </select>
     </div>
 
@@ -289,8 +258,8 @@
 
     <div class="form-group">
       <div class="checkbox-group" onclick="document.getElementById('icon-toggle').click();">
-        <label for="icon-toggle">🔣 타일 위 문양/아이콘 표시</label>
-        <input type="checkbox" id="icon-toggle" onclick="event.stopPropagation()">
+        <label for="icon-toggle">🔢 타일 위 숫자 라벨 표시</label>
+        <input type="checkbox" id="icon-toggle" checked onclick="event.stopPropagation()">
       </div>
     </div>
 
@@ -329,36 +298,33 @@
 
 <script>
   const socket = io();
-  const ROWS = 22;
-  const COLS = 36;
+  const ROWS = 12;
+  const COLS = 22;
 
-  const SYMBOLS = [
-    '★','▲','■','◆','●','♥','♣','♠',
-    '◈','▣','◐','◑','☀','🌙','☁','⚡',
-    '㉿','♨','♞','♟','✢','✦','✧','✶',
-    '❆','❇','❈','❉','❊','❋','⚽','⚾'
-  ];
+  const SYMBOLS = Array.from({length: 32}, (_, i) => (i + 1).toString());
 
   let board = [];
   let timeRemaining = 0;
   let currentRoomId = "ROOM_1";
-  let showIcons = false;
+  let showIcons = true;
   let activeColors = [];
   let lastScores = {};
 
   let hintSeconds = 60;
   let hintTimer = null;
 
-  function generateHighContrastColors(count) {
+  function generateEyeFriendlyColors(count) {
     const colors = [];
     for (let i = 0; i < count; i++) {
       const hue = Math.floor((360 / count) * i);
-      const sat = (i % 2 === 0) ? 90 : 75;
-      const lightTop = (i % 2 === 0) ? 68 : 58;
-      const lightBottom = (i % 2 === 0) ? 42 : 32;
+      const sat = 45 + (i % 3) * 5;
+      const light = 44 + (i % 2) * 12;
+
+      const textColor = light > 52 ? '#0f172a' : '#ffffff';
 
       colors.push({
-        background: `linear-gradient(180deg, hsl(${hue}, ${sat}%, ${lightTop}%) 0%, hsl(${hue}, ${sat}%, ${lightBottom}%) 100%)`
+        background: `hsl(${hue}, ${sat}%, ${light}%)`,
+        textColor: textColor
       });
     }
     return colors;
@@ -375,14 +341,14 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(250, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(750, audioCtx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.2);
+    osc.stop(audioCtx.currentTime + 0.15);
   }
 
   function playWrongSound() {
@@ -390,14 +356,14 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+    osc.frequency.setValueAtTime(130, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.35);
+    osc.stop(audioCtx.currentTime + 0.25);
   }
 
   function resetHintTimer() {
@@ -451,7 +417,7 @@
     const timeLimit = parseInt(document.getElementById('time-select').value, 10);
     showIcons = document.getElementById('icon-toggle').checked;
 
-    activeColors = generateHighContrastColors(selectedColorCount);
+    activeColors = generateEyeFriendlyColors(selectedColorCount);
 
     socket.emit('joinRoom', {
       roomId: currentRoomId,
@@ -491,7 +457,7 @@
     }
 
     if (shuffled) {
-      showToast('🔀 맞출 타일이 없어 맵을 새로 섞었습니다!');
+      showToast('🔀 타일이 새로 보충 및 섞였습니다!');
     }
   });
 
@@ -501,7 +467,7 @@
       const tile = document.getElementById(`tile-${hintPos.r}-${hintPos.c}`);
       if (tile) {
         tile.classList.add('hint-highlight');
-        showToast('💡 황금색으로 반짝이는 빈칸을 클릭하세요!');
+        showToast('💡 강조된 빈칸을 클릭하세요!');
       }
     } else {
       showToast('💡 맞출 자리가 없어 맵이 곧 섞입니다.');
@@ -575,7 +541,9 @@
           tile.innerText = '';
         } else {
           tile.className = 'tile';
-          tile.style.background = activeColors[colorIdx] ? activeColors[colorIdx].background : '#333';
+          const colorObj = activeColors[colorIdx] || { background: '#333', textColor: '#fff' };
+          tile.style.background = colorObj.background;
+          tile.style.color = colorObj.textColor;
           tile.innerText = showIcons ? SYMBOLS[colorIdx % SYMBOLS.length] : '';
         }
       }
@@ -617,7 +585,7 @@
     const modalLeaderboard = document.getElementById('modal-leaderboard');
 
     modalTitle.innerText = isVictory ? "🏆 승리!" : "💀 게임 종료";
-    modalTitle.style.color = isVictory ? "#38bdf8" : "#f87171";
+    modalTitle.style.color = isVictory ? "#58a6ff" : "#f85149";
     modalDesc.innerText = message;
 
     modalLeaderboard.innerHTML = '';
