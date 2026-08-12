@@ -8,11 +8,71 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 맵 크기 확대 (가로 30 x 세로 20)
 const ROWS = 20;
 const COLS = 30;
 
 const rooms = {};
+
+// 맞출 수 있는 위치(힌트)가 존재하는지 탐색
+function findValidMove(board) {
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== -1) continue; // 빈 공간만 체크
+
+      const colorCounts = {};
+      for (const [dr, dc] of directions) {
+        let nr = r + dr;
+        let nc = c + dc;
+        while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+          if (board[nr][nc] !== -1) {
+            const col = board[nr][nc];
+            colorCounts[col] = (colorCounts[col] || 0) + 1;
+            break;
+          }
+          nr += dr;
+          nc += dc;
+        }
+      }
+
+      // 같은 색상이 2개 이상 교차하면 유효한 자리
+      for (const col in colorCounts) {
+        if (colorCounts[col] >= 2) {
+          return { r, c };
+        }
+      }
+    }
+  }
+  return null; // 맞출 자리가 없음
+}
+
+// 더 이상 움직일 수 없으면 타일 재배치 (셔플)
+function ensureValidBoard(board) {
+  let attempts = 0;
+  while (!findValidMove(board) && attempts < 100) {
+    const tiles = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (board[r][c] !== -1) tiles.push(board[r][c]);
+      }
+    }
+
+    // 타일 무작위 섞기
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+    }
+
+    let idx = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (board[r][c] !== -1) board[r][c] = tiles[idx++];
+      }
+    }
+    attempts++;
+  }
+}
 
 function generateBoard(colorCount) {
   const board = [];
@@ -23,20 +83,17 @@ function generateBoard(colorCount) {
     }
     board.push(row);
   }
+  ensureValidBoard(board);
   return board;
 }
 
 function checkAndRemoveTiles(board, r, c) {
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1]
-  ];
-
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   const foundTiles = [];
 
   for (const [dr, dc] of directions) {
     let nr = r + dr;
     let nc = c + dc;
-
     while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
       if (board[nr][nc] !== -1) {
         foundTiles.push({ r: nr, c: nc, color: board[nr][nc] });
@@ -127,9 +184,7 @@ io.on('connection', (socket) => {
     if (!room || room.timeRemaining <= 0) return;
 
     const player = room.players[socket.id];
-    if (!player) return;
-
-    if (player.board[r][c] !== -1) return;
+    if (!player || player.board[r][c] !== -1) return;
 
     const removedCount = checkAndRemoveTiles(player.board, r, c);
     const hit = removedCount > 0;
@@ -138,9 +193,17 @@ io.on('connection', (socket) => {
       player.score += removedCount;
     }
 
+    // 판에 움직일 공간이 더 이상 없는 경우 자동 셔플
+    let shuffled = false;
+    if (!findValidMove(player.board)) {
+      ensureValidBoard(player.board);
+      shuffled = true;
+    }
+
     socket.emit('updateMyBoard', {
       board: player.board,
-      hit
+      hit,
+      shuffled
     });
 
     broadcastScores(roomId);
@@ -152,6 +215,17 @@ io.on('connection', (socket) => {
         reason: `${player.nickname}님이 200점을 달성했습니다!`
       });
     }
+  });
+
+  // 힌트 요청 처리
+  socket.on('getHint', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const player = room.players[socket.id];
+    if (!player) return;
+
+    const hintPos = findValidMove(player.board);
+    socket.emit('receiveHint', hintPos);
   });
 
   socket.on('disconnect', () => {
