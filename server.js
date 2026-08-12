@@ -8,25 +8,26 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 총 264칸 (12행 x 22열: 색상 타일 198개, 빈 공간 66개 = 정확히 25%)
-const ROWS = 12;
-const COLS = 22;
-const TARGET_TILE_COUNT = 198; 
+// 모드별 설정 값
+const MODE_CONFIG = {
+  normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200, refillThreshold: 30 },
+  hard: { rows: 20, cols: 30, targetTileCount: 450, winScore: 500, refillThreshold: 40 }
+};
 
 const rooms = {};
 
-function findValidMove(board) {
+function findValidMove(board, rows, cols) {
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (board[r][c] !== -1) continue;
 
       const colorCounts = {};
       for (const [dr, dc] of directions) {
         let nr = r + dr;
         let nc = c + dc;
-        while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+        while (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
           if (board[nr][nc] !== -1) {
             const col = board[nr][nc];
             colorCounts[col] = (colorCounts[col] || 0) + 1;
@@ -47,29 +48,29 @@ function findValidMove(board) {
   return null;
 }
 
-function countRemainingTiles(board) {
+function countRemainingTiles(board, rows, cols) {
   let count = 0;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (board[r][c] !== -1) count++;
     }
   }
   return count;
 }
 
-function ensureValidBoard(board, colorCount) {
-  let remaining = countRemainingTiles(board);
+function ensureValidBoard(board, config, colorCount) {
+  const { rows, cols, targetTileCount, refillThreshold } = config;
+  let remaining = countRemainingTiles(board, rows, cols);
 
-  // 타일이 30개 미만이거나 맞출 수가 없으면 198개(25% 빈 공간)로 리필
-  if (remaining < 30 || !findValidMove(board)) {
+  if (remaining < refillThreshold || !findValidMove(board, rows, cols)) {
     const tiles = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
         if (board[r][c] !== -1) tiles.push(board[r][c]);
       }
     }
 
-    while (tiles.length < TARGET_TILE_COUNT) {
+    while (tiles.length < targetTileCount) {
       tiles.push(Math.floor(Math.random() * colorCount));
     }
 
@@ -78,16 +79,16 @@ function ensureValidBoard(board, colorCount) {
       [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
     }
 
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
         board[r][c] = -1;
       }
     }
 
     let placed = 0;
-    while (placed < TARGET_TILE_COUNT) {
-      const r = Math.floor(Math.random() * ROWS);
-      const c = Math.floor(Math.random() * COLS);
+    while (placed < targetTileCount) {
+      const r = Math.floor(Math.random() * rows);
+      const c = Math.floor(Math.random() * cols);
       if (board[r][c] === -1) {
         board[r][c] = tiles[placed++];
       }
@@ -95,10 +96,10 @@ function ensureValidBoard(board, colorCount) {
   }
 
   let attempts = 0;
-  while (!findValidMove(board) && attempts < 50) {
+  while (!findValidMove(board, rows, cols) && attempts < 50) {
     const tiles = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
         if (board[r][c] !== -1) tiles.push(board[r][c]);
       }
     }
@@ -107,8 +108,8 @@ function ensureValidBoard(board, colorCount) {
       [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
     }
     let idx = 0;
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
         if (board[r][c] !== -1) board[r][c] = tiles[idx++];
       }
     }
@@ -116,35 +117,36 @@ function ensureValidBoard(board, colorCount) {
   }
 }
 
-function generateBoard(colorCount) {
-  const board = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
+function generateBoard(config, colorCount) {
+  const { rows, cols, targetTileCount } = config;
+  const board = Array.from({ length: rows }, () => Array(cols).fill(-1));
   const tiles = [];
 
-  for (let i = 0; i < TARGET_TILE_COUNT; i++) {
+  for (let i = 0; i < targetTileCount; i++) {
     tiles.push(Math.floor(Math.random() * colorCount));
   }
 
   let placed = 0;
-  while (placed < TARGET_TILE_COUNT) {
-    const r = Math.floor(Math.random() * ROWS);
-    const c = Math.floor(Math.random() * COLS);
+  while (placed < targetTileCount) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
     if (board[r][c] === -1) {
       board[r][c] = tiles[placed++];
     }
   }
 
-  ensureValidBoard(board, colorCount);
+  ensureValidBoard(board, config, colorCount);
   return board;
 }
 
-function checkAndRemoveTiles(board, r, c) {
+function checkAndRemoveTiles(board, r, c, rows, cols) {
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   const foundTiles = [];
 
   for (const [dr, dc] of directions) {
     let nr = r + dr;
     let nc = c + dc;
-    while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+    while (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
       if (board[nr][nc] !== -1) {
         foundTiles.push({ r: nr, c: nc, color: board[nr][nc] });
         break;
@@ -179,11 +181,14 @@ function broadcastScores(roomId) {
       score: rooms[roomId].players[id].score
     };
   }
-  io.to(roomId).emit('updateScores', scores);
+  io.to(roomId).emit('updateScores', {
+    scores,
+    winScore: rooms[roomId].config.winScore
+  });
 }
 
 io.on('connection', (socket) => {
-  socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname }) => {
+  socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname, mode }) => {
     socket.join(roomId);
 
     if (!rooms[roomId] || rooms[roomId].timeRemaining <= 0) {
@@ -191,9 +196,13 @@ io.on('connection', (socket) => {
         clearInterval(rooms[roomId].timer);
       }
 
+      const selectedMode = MODE_CONFIG[mode] ? mode : 'normal';
+      const config = MODE_CONFIG[selectedMode];
       const selectedTime = timeLimit || 86400;
 
       rooms[roomId] = {
+        mode: selectedMode,
+        config,
         colorCount: colorCount || 16,
         timeLimit: selectedTime,
         timeRemaining: selectedTime,
@@ -214,15 +223,17 @@ io.on('connection', (socket) => {
       }, 1000);
     }
 
-    rooms[roomId].players[socket.id] = {
+    const room = rooms[roomId];
+    room.players[socket.id] = {
       nickname: nickname || '익명',
       score: 0,
-      board: generateBoard(rooms[roomId].colorCount)
+      board: generateBoard(room.config, room.colorCount)
     };
 
     socket.emit('initMyBoard', {
-      board: rooms[roomId].players[socket.id].board,
-      timeRemaining: rooms[roomId].timeRemaining
+      board: room.players[socket.id].board,
+      timeRemaining: room.timeRemaining,
+      config: room.config
     });
 
     broadcastScores(roomId);
@@ -235,7 +246,7 @@ io.on('connection', (socket) => {
     const player = room.players[socket.id];
     if (!player || player.board[r][c] !== -1) return;
 
-    const removedCount = checkAndRemoveTiles(player.board, r, c);
+    const removedCount = checkAndRemoveTiles(player.board, r, c, room.config.rows, room.config.cols);
     const hit = removedCount > 0;
 
     if (hit) {
@@ -243,10 +254,10 @@ io.on('connection', (socket) => {
     }
 
     let shuffled = false;
-    const oldTileCount = countRemainingTiles(player.board);
+    const oldTileCount = countRemainingTiles(player.board, room.config.rows, room.config.cols);
     
-    ensureValidBoard(player.board, room.colorCount);
-    if (countRemainingTiles(player.board) > oldTileCount) {
+    ensureValidBoard(player.board, room.config, room.colorCount);
+    if (countRemainingTiles(player.board, room.config.rows, room.config.cols) > oldTileCount) {
       shuffled = true;
     }
 
@@ -258,11 +269,11 @@ io.on('connection', (socket) => {
 
     broadcastScores(roomId);
 
-    if (player.score >= 200) {
+    if (player.score >= room.config.winScore) {
       if (room.timer) clearInterval(room.timer);
       io.to(roomId).emit('gameOver', {
         winnerId: socket.id,
-        reason: `${player.nickname}님이 200점을 달성했습니다!`
+        reason: `${player.nickname}님이 ${room.config.winScore}점을 달성했습니다!`
       });
     }
   });
@@ -273,7 +284,7 @@ io.on('connection', (socket) => {
     const player = room.players[socket.id];
     if (!player) return;
 
-    const hintPos = findValidMove(player.board);
+    const hintPos = findValidMove(player.board, room.config.rows, room.config.cols);
     socket.emit('receiveHint', hintPos);
   });
 
