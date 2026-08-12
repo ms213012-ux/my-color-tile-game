@@ -8,8 +8,9 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-const ROWS = 20;
-const COLS = 30;
+// 맵 크기 더 확대 (가로 36 x 세로 22)
+const ROWS = 22;
+const COLS = 36;
 
 const rooms = {};
 
@@ -19,7 +20,7 @@ function findValidMove(board) {
   
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      if (board[r][c] !== -1) continue; // 빈 공간만 체크
+      if (board[r][c] !== -1) continue;
 
       const colorCounts = {};
       for (const [dr, dc] of directions) {
@@ -36,7 +37,6 @@ function findValidMove(board) {
         }
       }
 
-      // 같은 색상이 2개 이상 교차하면 유효한 자리
       for (const col in colorCounts) {
         if (colorCounts[col] >= 2) {
           return { r, c };
@@ -44,10 +44,10 @@ function findValidMove(board) {
       }
     }
   }
-  return null; // 맞출 자리가 없음
+  return null;
 }
 
-// 더 이상 움직일 수 없으면 타일 재배치 (셔플)
+// 더 이상 움직일 수 없으면 타일만 무작위 재배치
 function ensureValidBoard(board) {
   let attempts = 0;
   while (!findValidMove(board) && attempts < 100) {
@@ -58,7 +58,6 @@ function ensureValidBoard(board) {
       }
     }
 
-    // 타일 무작위 섞기
     for (let i = tiles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
@@ -74,12 +73,17 @@ function ensureValidBoard(board) {
   }
 }
 
+// 맵 생성 시 약 15%의 빈 공간(-1)을 기본 배치
 function generateBoard(colorCount) {
   const board = [];
   for (let r = 0; r < ROWS; r++) {
     const row = [];
     for (let c = 0; c < COLS; c++) {
-      row.push(Math.floor(Math.random() * colorCount));
+      if (Math.random() < 0.15) {
+        row.push(-1); // 시작부터 빈 공간 생성
+      } else {
+        row.push(Math.floor(Math.random() * colorCount));
+      }
     }
     board.push(row);
   }
@@ -193,7 +197,6 @@ io.on('connection', (socket) => {
       player.score += removedCount;
     }
 
-    // 판에 움직일 공간이 더 이상 없는 경우 자동 셔플
     let shuffled = false;
     if (!findValidMove(player.board)) {
       ensureValidBoard(player.board);
@@ -217,7 +220,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 힌트 요청 처리
   socket.on('getHint', ({ roomId }) => {
     const room = rooms[roomId];
     if (!room) return;
