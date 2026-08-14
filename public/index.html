@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Color Flood - 천후개조 컬러타일</title>
+  <title>Color Tile - 천후개조 컬러타일</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Pretendard', -apple-system, sans-serif;
     }
 
     body {
@@ -20,12 +20,12 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      padding: 20px;
+      padding: 16px;
     }
 
     .container {
       width: 100%;
-      max-width: 600px;
+      max-width: 900px;
       background-color: #1e293b;
       padding: 24px;
       border-radius: 16px;
@@ -39,225 +39,150 @@
       color: #38bdf8;
     }
 
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
-    /* 로비 뷰 */
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 0.9rem;
-      color: #94a3b8;
-    }
-
+    .form-group { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: #94a3b8; }
     input, select {
-      width: 100%;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      background-color: #0f172a;
-      color: #fff;
-      font-size: 1rem;
-      outline: none;
-    }
-
-    input:focus, select:focus {
-      border-color: #38bdf8;
+      width: 100%; padding: 12px; border-radius: 8px;
+      border: 1px solid #334155; background-color: #0f172a; color: #fff; font-size: 1rem;
     }
 
     .btn {
-      width: 100%;
-      padding: 14px;
-      border-radius: 8px;
-      border: none;
-      background-color: #0284c7;
-      color: white;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
+      width: 100%; padding: 14px; border-radius: 8px; border: none;
+      background-color: #0284c7; color: white; font-size: 1rem; font-weight: bold;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn:hover { background-color: #0369a1; }
+    .btn-secondary { background-color: #475569; }
+    .btn-secondary:hover { background-color: #334155; }
+
+    .game-layout {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 20px;
     }
 
-    .btn:hover {
-      background-color: #0369a1;
+    @media (max-width: 768px) {
+      .game-layout { grid-template-columns: 1fr; }
     }
 
-    /* 게임 뷰 */
     .status-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #0f172a;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      font-weight: 500;
-    }
-
-    .board-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
     }
 
     #board {
-      display: grid;
-      gap: 2px;
-      background-color: #334155;
-      padding: 4px;
-      border-radius: 8px;
-      width: 100%;
-      max-width: 450px;
-      aspect-ratio: 1;
+      display: grid; gap: 2px; background-color: #334155;
+      padding: 6px; border-radius: 8px; width: 100%; aspect-ratio: 4 / 3;
     }
 
     .tile {
-      width: 100%;
-      height: 100%;
-      border-radius: 2px;
-      transition: background-color 0.15s ease-in-out;
+      width: 100%; height: 100%; border-radius: 3px; cursor: pointer;
+      transition: transform 0.05s, opacity 0.2s;
+    }
+    .tile:hover { transform: scale(1.08); z-index: 2; }
+    .tile.empty {
+      background-color: #1e293b !important;
+      border: 1px dashed #334155;
+    }
+    .tile.hint-target {
+      animation: hintPulse 0.8s infinite alternate;
+      border: 2px solid #f59e0b !important;
     }
 
-    .palette {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      margin-bottom: 16px;
+    @keyframes hintPulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(245, 158, 11, 0.8); }
+      100% { transform: scale(1.15); box-shadow: 0 0 10px rgba(245, 158, 11, 1); }
     }
 
-    .color-btn {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      border: 3px solid transparent;
-      cursor: pointer;
-      transition: transform 0.1s, border-color 0.2s;
+    .scoreboard {
+      background-color: #0f172a;
+      padding: 16px;
+      border-radius: 8px;
     }
-
-    .color-btn:hover {
-      transform: scale(1.1);
+    .scoreboard h3 { margin-bottom: 12px; color: #38bdf8; font-size: 1.1rem; }
+    .player-rank {
+      display: flex; justify-content: space-between; padding: 8px 0;
+      border-bottom: 1px solid #1e293b; font-size: 0.95rem;
     }
+    .player-rank.me { color: #f59e0b; font-weight: bold; }
 
-    .color-btn.active {
-      border-color: #ffffff;
-    }
+    .controls { display: flex; gap: 10px; margin-top: 16px; }
 
-    .color-btn.hint-highlight {
-      animation: pulse 1s infinite alternate;
-      border-color: #f59e0b !important;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
-      100% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
-    }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-    }
-
-    .btn-secondary {
-      background-color: #475569;
-    }
-
-    .btn-secondary:hover {
-      background-color: #334155;
-    }
-
-    /* 모달 */
     .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 10;
     }
-
     .modal-content {
-      background-color: #1e293b;
-      padding: 30px;
-      border-radius: 12px;
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-    }
-
-    .modal-content h2 {
-      margin-bottom: 12px;
-      color: #38bdf8;
-    }
-
-    .modal-content p {
-      margin-bottom: 20px;
-      color: #cbd5e1;
+      background-color: #1e293b; padding: 30px; border-radius: 12px; text-align: center;
+      max-width: 400px; width: 90%;
     }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h1>🎨 Color Flood</h1>
+    <h1>⚔️ Color Tile 멀티 대전</h1>
 
-    <!-- 로비 화면 -->
+    <!-- 로비 -->
     <div id="lobby-view">
       <div class="form-group">
-        <label for="room-id">방 이름 (접속 코드)</label>
-        <input type="text" id="room-id" placeholder="방 이름을 입력하세요" value="room1">
+        <label for="player-name">닉네임</label>
+        <input type="text" id="player-name" placeholder="닉네임을 입력하세요">
       </div>
       <div class="form-group">
-        <label for="color-count">색상 개수</label>
-        <select id="color-count">
-          <option value="4">4개 (매우 쉬움)</option>
-          <option value="6">6개 (쉬움)</option>
-          <option value="8">8개 (보통)</option>
-          <option value="12">12개 (어려움)</option>
-          <option value="16" selected>16개 (매우 어려움)</option>
-          <option value="24">24개 (극악)</option>
-          <option value="32">32개 (지옥 난이도)</option>
+        <label for="room-id">방 이름</label>
+        <input type="text" id="room-id" value="battle-room">
+      </div>
+      <div class="form-group">
+        <label for="target-score">승리 목표 점수</label>
+        <select id="target-score">
+          <option value="200" selected>200점 먼저 달성</option>
+          <option value="500">500점 먼저 달성</option>
         </select>
       </div>
       <div class="form-group">
-        <label for="time-limit">제한 시간 (초)</label>
-        <input type="number" id="time-limit" value="60" min="10" max="300">
+        <label for="color-count">색상 수</label>
+        <select id="color-count">
+          <option value="6">6개 (쉬움)</option>
+          <option value="8" selected>8개 (보통)</option>
+          <option value="12">12개 (어려움)</option>
+        </select>
       </div>
-      <button class="btn" id="join-btn">게임 입장 / 생성</button>
+      <button class="btn" id="join-btn">대전 방 참가하기</button>
     </div>
 
     <!-- 게임 화면 -->
     <div id="game-view" class="hidden">
       <div class="status-bar">
-        <span>⏱️ 시간: <strong id="time-display">60</strong>s</span>
-        <span>🎯 이동: <strong id="moves-display">0</strong></span>
-        <span>👥 인원: <strong id="player-count">1</strong>명</span>
+        <span>⏱️ 남은 시간: <strong id="time-display">120</strong>s</span>
+        <span>🎯 목표 점수: <strong id="target-score-display">200</strong>점</span>
       </div>
 
-      <div class="board-container">
-        <div id="board"></div>
-      </div>
+      <div class="game-layout">
+        <div>
+          <div id="board"></div>
+          <div class="controls">
+            <button class="btn btn-secondary" id="hint-btn">💡 힌트</button>
+            <button class="btn" id="leave-btn">나가기</button>
+          </div>
+        </div>
 
-      <div id="palette" class="palette"></div>
-
-      <div class="controls">
-        <button class="btn btn-secondary" id="hint-btn">💡 힌트 사용</button>
-        <button class="btn" id="leave-btn">로비로 이동</button>
+        <!-- 실시간 점수판 -->
+        <div class="scoreboard">
+          <h3>🏆 플레이어 순위</h3>
+          <div id="player-list"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- 결과 모달 -->
+  <!-- 모달 -->
   <div id="modal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h2 id="modal-title">결과</h2>
-      <p id="modal-message">내용</p>
+      <h2 id="modal-title" style="margin-bottom:12px; color:#38bdf8;">결과</h2>
+      <p id="modal-message" style="margin-bottom:20px; color:#cbd5e1; white-space: pre-line;"></p>
       <button class="btn" id="modal-close-btn">확인</button>
     </div>
   </div>
@@ -265,52 +190,45 @@
   <script>
     const socket = io();
 
-    // 상태 변수
     let board = [];
     let activeColors = [];
-    let moves = 0;
-    let timeRemaining = 0;
-    let currentConfig = {};
+    let myScore = 0;
     let hintTimeout = null;
 
-    // HSL 기반으로 가독성 좋고 구분되는 N가지 색상 생성
     function generateEyeFriendlyColors(count) {
       const colors = [];
       const hueStep = 360 / count;
       for (let i = 0; i < count; i++) {
-        const hue = Math.round(i * hueStep);
-        // 채도와 명도를 고정하여 눈이 편안하면서 구분하기 쉬운 색상 조합 생성
-        colors.push(`hsl(${hue}, 70%, 55%)`);
+        colors.push(`hsl(${Math.round(i * hueStep)}, 75%, 55%)`);
       }
       return colors;
     }
 
-    // 로비 -> 게임 입장 요청
     document.getElementById('join-btn').addEventListener('click', () => {
+      const playerName = document.getElementById('player-name').value;
       const roomId = document.getElementById('room-id').value;
+      const targetScore = parseInt(document.getElementById('target-score').value);
       const colorCount = parseInt(document.getElementById('color-count').value);
-      const timeLimit = parseInt(document.getElementById('time-limit').value);
 
       socket.emit('joinRoom', {
         roomId,
+        playerName,
+        targetScore,
         colorCount,
-        width: 12,
+        width: 16,
         height: 12,
-        timeLimit
+        timeLimit: 180
       });
     });
 
-    // 서버로부터 내 보드 데이터 및 설정 수신
-    socket.on('initMyBoard', ({ board: myBoard, timeRemaining: serverTime, config, colorCount }) => {
+    socket.on('initMyBoard', ({ board: myBoard, targetScore, timeRemaining, colorCount }) => {
       board = myBoard;
-      timeRemaining = serverTime;
-      currentConfig = config;
-      moves = 0;
+      myScore = 0;
 
-      // 동기화된 colorCount로 팔레트 색상 동적 생성 (멀티플레이어 색상 불일치 해결)
-      if (colorCount) {
-        activeColors = generateEyeFriendlyColors(colorCount);
-      }
+      activeColors = generateEyeFriendlyColors(colorCount);
+
+      document.getElementById('target-score-display').innerText = targetScore;
+      document.getElementById('time-display').innerText = timeRemaining;
 
       document.getElementById('lobby-view').classList.add('hidden');
       document.getElementById('game-view').classList.remove('hidden');
@@ -318,11 +236,8 @@
 
       buildBoardGrid();
       renderBoard();
-      renderPalette();
-      updateStatusDisplay();
     });
 
-    // 보드 그리드 DOM 구조 생성
     function buildBoardGrid() {
       const boardElement = document.getElementById('board');
       boardElement.innerHTML = '';
@@ -338,125 +253,89 @@
           tile.className = 'tile';
           tile.dataset.row = r;
           tile.dataset.col = c;
+
+          tile.addEventListener('click', () => {
+            clearHint();
+            socket.emit('clickTile', { r, c });
+          });
+
           boardElement.appendChild(tile);
         }
       }
     }
 
-    // 보드 타일 색상 렌더링
     function renderBoard() {
       const tiles = document.querySelectorAll('#board .tile');
-      const width = board[0].length;
-
       tiles.forEach(tile => {
         const r = parseInt(tile.dataset.row);
         const c = parseInt(tile.dataset.col);
         const colorIdx = board[r][c];
-        tile.style.backgroundColor = activeColors[colorIdx] || '#000';
-      });
-    }
 
-    // 팔레트 버튼 생성 및 렌더링
-    function renderPalette() {
-      const paletteElement = document.getElementById('palette');
-      paletteElement.innerHTML = '';
-
-      activeColors.forEach((color, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'color-btn';
-        btn.style.backgroundColor = color;
-        btn.dataset.colorIdx = idx;
-
-        if (board[0] && board[0][0] === idx) {
-          btn.classList.add('active');
+        if (colorIdx === null) {
+          tile.className = 'tile empty';
+          tile.style.backgroundColor = '';
+        } else {
+          tile.className = 'tile';
+          tile.style.backgroundColor = activeColors[colorIdx] || '#000';
         }
-
-        btn.addEventListener('click', () => {
-          socket.emit('clickTile', { selectedColor: idx });
-          clearHintHighlight();
-        });
-
-        paletteElement.appendChild(btn);
       });
     }
 
-    // 힌트 버튼 및 하이라이트 제어
+    socket.on('updateBoard', ({ board: updatedBoard, score: updatedScore }) => {
+      board = updatedBoard;
+      myScore = updatedScore;
+      renderBoard();
+    });
+
+    socket.on('timeUpdate', ({ timeRemaining }) => {
+      document.getElementById('time-display').innerText = timeRemaining;
+    });
+
+    socket.on('roomStatusUpdate', ({ players, targetScore }) => {
+      const listElement = document.getElementById('player-list');
+      listElement.innerHTML = '';
+
+      // 점수 순 내림차순 정렬
+      players.sort((a, b) => b.score - a.score);
+
+      players.forEach(p => {
+        const item = document.createElement('div');
+        const isMe = p.id === socket.id;
+        item.className = `player-rank ${isMe ? 'me' : ''}`;
+        item.innerHTML = `
+          <span>${p.name}${isMe ? ' (나)' : ''}</span>
+          <span>${p.score} / ${targetScore}점</span>
+        `;
+        listElement.appendChild(item);
+      });
+    });
+
+    // 힌트
     document.getElementById('hint-btn').addEventListener('click', () => {
       socket.emit('requestHint');
     });
 
-    socket.on('receiveHint', ({ hintColor }) => {
-      clearHintHighlight();
-      const buttons = document.querySelectorAll('.color-btn');
-      if (buttons[hintColor]) {
-        buttons[hintColor].classList.add('hint-highlight');
-        
-        // 3초 후 힌트 하이라이트 자동 제거
-        hintTimeout = setTimeout(() => {
-          clearHintHighlight();
-        }, 3000);
+    socket.on('receiveHint', ({ hintPos }) => {
+      clearHint();
+      if (hintPos) {
+        const target = document.querySelector(`.tile[data-row="${hintPos.r}"][data-col="${hintPos.c}"]`);
+        if (target) {
+          target.classList.add('hint-target');
+          hintTimeout = setTimeout(clearHint, 3000);
+        }
       }
     });
 
-    function clearHintHighlight() {
+    function clearHint() {
       if (hintTimeout) clearTimeout(hintTimeout);
-      document.querySelectorAll('.color-btn').forEach(btn => {
-        btn.classList.remove('hint-highlight');
-      });
+      document.querySelectorAll('.tile').forEach(t => t.classList.remove('hint-target'));
     }
 
-    // 보드 업데이트 수신
-    socket.on('updateBoard', ({ board: updatedBoard, moves: updatedMoves }) => {
-      board = updatedBoard;
-      moves = updatedMoves;
-      renderBoard();
-      updatePaletteActiveState();
-      updateStatusDisplay();
+    // 승리/종료 모달
+    socket.on('matchEnded', ({ winnerName, winnerScore, reason }) => {
+      showModal('🏆 경기 종료', `우승자: ${winnerName} (${winnerScore}점)\n${reason}`);
     });
 
-    function updatePaletteActiveState() {
-      const currentColor = board[0][0];
-      const buttons = document.querySelectorAll('.color-btn');
-      buttons.forEach(btn => {
-        const idx = parseInt(btn.dataset.colorIdx);
-        if (idx === currentColor) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
-    }
-
-    // 실시간 타이머 수신
-    socket.on('timeUpdate', ({ timeRemaining: time }) => {
-      timeRemaining = time;
-      document.getElementById('time-display').innerText = timeRemaining;
-    });
-
-    // 방 인원 수 갱신
-    socket.on('roomInfo', ({ playerCount }) => {
-      document.getElementById('player-count').innerText = playerCount;
-    });
-
-    function updateStatusDisplay() {
-      document.getElementById('time-display').innerText = timeRemaining;
-      document.getElementById('moves-display').innerText = moves;
-    }
-
-    // 게임 승리 및 종료 이벤트 처리
-    socket.on('gameCleared', ({ moves, timeLeft }) => {
-      showModal('🎉 축하합니다!', `보드를 모두 채웠습니다! (이동 횟수: ${moves}회)`);
-    });
-
-    socket.on('gameOver', ({ reason }) => {
-      showModal('⏰ 게임 오버', reason);
-    });
-
-    socket.on('allPlayersCleared', () => {
-      showModal('🏆 모든 플레이어 완료', '방 내의 모든 플레이어가 게임을 마쳤습니다!');
-    });
-
-    // 모달 표시 함수
     function showModal(title, message) {
       document.getElementById('modal-title').innerText = title;
       document.getElementById('modal-message').innerText = message;
@@ -467,7 +346,6 @@
       document.getElementById('modal').classList.add('hidden');
     });
 
-    // 로비로 돌아가기
     document.getElementById('leave-btn').addEventListener('click', () => {
       location.reload();
     });
