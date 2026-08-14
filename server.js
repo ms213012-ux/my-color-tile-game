@@ -1,338 +1,248 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static('public'));
+// 정적 파일 제공 (public 폴더)
+app.use(express.static(path.join(__dirname, 'public')));
 
-// 모드별 설정 값
-const MODE_CONFIG = {
-  normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200, refillThreshold: 30 },
-  hard: { rows: 20, cols: 30, targetTileCount: 450, winScore: 500, refillThreshold: 40 }
-};
-
+// 방 상태 관리 객체
 const rooms = {};
 
-function findValidMove(board, rows, cols) {
-  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-  
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (board[r][c] !== -1) continue;
-
-      const colorCounts = {};
-      for (const [dr, dc] of directions) {
-        let nr = r + dr;
-        let nc = c + dc;
-        while (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-          if (board[nr][nc] !== -1) {
-            const col = board[nr][nc];
-            colorCounts[col] = (colorCounts[col] || 0) + 1;
-            break;
-          }
-          nr += dr;
-          nc += dc;
-        }
-      }
-
-      for (const col in colorCounts) {
-        if (colorCounts[col] >= 2) {
-          return { r, c };
-        }
-      }
+// 보드 생성 함수
+function createBoard(width, height, colorCount) {
+  const board = [];
+  for (let r = 0; r < height; r++) {
+    const row = [];
+    for (let c = 0; c < width; c++) {
+      row.push(Math.floor(Math.random() * colorCount));
     }
+    board.push(row);
   }
-  return null;
-}
-
-function countRemainingTiles(board, rows, cols) {
-  let count = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (board[r][c] !== -1) count++;
-    }
-  }
-  return count;
-}
-
-function generateBoard(config, colorCount) {
-  const { rows, cols, targetTileCount } = config;
-  const board = Array.from({ length: rows }, () => Array(cols).fill(-1));
-  const tiles = [];
-
-  for (let i = 0; i < targetTileCount; i++) {
-    tiles.push(Math.floor(Math.random() * colorCount));
-  }
-
-  let placed = 0;
-  while (placed < targetTileCount) {
-    const r = Math.floor(Math.random() * rows);
-    const c = Math.floor(Math.random() * cols);
-    if (board[r][c] === -1) {
-      board[r][c] = tiles[placed++];
-    }
-  }
-
-  ensureValidBoard(board, config, colorCount);
   return board;
 }
 
-function ensureValidBoard(board, config, colorCount) {
-  const { rows, cols, targetTileCount, refillThreshold } = config;
-  let remaining = countRemainingTiles(board, rows, cols);
-  let wasChanged = false;
+// Flood Fill 알고리즘 (동일 색상 연쇄 변경)
+function floodFill(board, targetColor, replacementColor) {
+  if (targetColor === replacementColor) return;
+  const height = board.length;
+  const width = board[0].length;
 
-  // 1. 타일 부족 또는 이동 가능한 수 없음 -> 타일 리필
-  if (remaining < refillThreshold || !findValidMove(board, rows, cols)) {
-    wasChanged = true;
-    const tiles = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (board[r][c] !== -1) tiles.push(board[r][c]);
-      }
-    }
+  function dfs(r, c) {
+    if (r < 0 || r >= height || c < 0 || c >= width) return;
+    if (board[r][c] !== targetColor) return;
 
-    while (tiles.length < targetTileCount) {
-      tiles.push(Math.floor(Math.random() * colorCount));
-    }
-
-    for (let i = tiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-    }
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        board[r][c] = -1;
-      }
-    }
-
-    let placed = 0;
-    while (placed < targetTileCount) {
-      const r = Math.floor(Math.random() * rows);
-      const c = Math.floor(Math.random() * cols);
-      if (board[r][c] === -1) {
-        board[r][c] = tiles[placed++];
-      }
-    }
+    board[r][c] = replacementColor;
+    dfs(r + 1, c);
+    dfs(r - 1, c);
+    dfs(r, c + 1);
+    dfs(r, c - 1);
   }
 
-  // 2. 유효한 수가 나올 때까지 보드 셔플 (최대 50회)
-  let attempts = 0;
-  while (!findValidMove(board, rows, cols) && attempts < 50) {
-    wasChanged = true;
-    const tiles = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (board[r][c] !== -1) tiles.push(board[r][c]);
-      }
-    }
-    for (let i = tiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-    }
-    let idx = 0;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (board[r][c] !== -1) board[r][c] = tiles[idx++];
-      }
-    }
-    attempts++;
-  }
-
-  // 3. Fallback: 50회 시도 후에도 유효 수가 없으면 보드 완전 재생성
-  if (!findValidMove(board, rows, cols)) {
-    wasChanged = true;
-    const newBoard = generateBoard(config, colorCount);
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        board[r][c] = newBoard[r][c];
-      }
-    }
-  }
-
-  return wasChanged;
+  dfs(0, 0);
 }
 
-function checkAndRemoveTiles(board, r, c, rows, cols) {
-  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-  const foundTiles = [];
+// 보드 완판 여부 확인
+function isBoardCleared(board) {
+  const target = board[0][0];
+  for (let r = 0; r < board.length; r++) {
+    for (let c = 0; c < board[r].length; c++) {
+      if (board[r][c] !== target) return false;
+    }
+  }
+  return true;
+}
 
-  for (const [dr, dc] of directions) {
-    let nr = r + dr;
-    let nc = c + dc;
-    while (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-      if (board[nr][nc] !== -1) {
-        foundTiles.push({ r: nr, c: nc, color: board[nr][nc] });
-        break;
+// 힌트 찾기 (가장 많은 타일 영역을 늘려주는 색상 추천)
+function getBestHintColor(board, colorCount) {
+  const currentColor = board[0][0];
+  let maxCount = -1;
+  let bestColor = (currentColor + 1) % colorCount;
+
+  for (let color = 0; color < colorCount; color++) {
+    if (color === currentColor) continue;
+
+    // 가상 보드 복사 후 flood fill 실행
+    const tempBoard = board.map(row => [...row]);
+    floodFill(tempBoard, currentColor, color);
+
+    // 색상 변경 후 연동된 영역 크기 측정
+    let count = 0;
+    const visited = tempBoard.map(row => row.map(() => false));
+    const stack = [[0, 0]];
+    visited[0][0] = true;
+
+    while (stack.length > 0) {
+      const [r, c] = stack.pop();
+      count++;
+      const neighbors = [[r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]];
+      for (const [nr, nc] of neighbors) {
+        if (
+          nr >= 0 && nr < tempBoard.length &&
+          nc >= 0 && nc < tempBoard[0].length &&
+          !visited[nr][nc] &&
+          tempBoard[nr][nc] === color
+        ) {
+          visited[nr][nc] = true;
+          stack.push([nr, nc]);
+        }
       }
-      nr += dr;
-      nc += dc;
+    }
+
+    if (count > maxCount) {
+      maxCount = count;
+      bestColor = color;
     }
   }
 
-  const colorCounts = {};
-  foundTiles.forEach(tile => {
-    colorCounts[tile.color] = (colorCounts[tile.color] || 0) + 1;
-  });
-
-  let removedCount = 0;
-  foundTiles.forEach(tile => {
-    if (colorCounts[tile.color] >= 2) {
-      board[tile.r][tile.c] = -1;
-      removedCount++;
-    }
-  });
-
-  return removedCount;
+  return bestColor;
 }
 
-function broadcastScores(roomId) {
-  if (!rooms[roomId]) return;
-  const scores = {};
-  for (const id in rooms[roomId].players) {
-    scores[id] = {
-      nickname: rooms[roomId].players[id].nickname,
-      score: rooms[roomId].players[id].score
-    };
-  }
-  io.to(roomId).emit('updateScores', {
-    scores,
-    winScore: rooms[roomId].config.winScore
-  });
-}
-
+// Socket.io 연결 처리
 io.on('connection', (socket) => {
-  socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname, mode }) => {
-    socket.join(roomId);
+  console.log(`클라이언트 연결됨: ${socket.id}`);
 
-    if (!rooms[roomId] || rooms[roomId].timeRemaining <= 0) {
-      if (rooms[roomId] && rooms[roomId].timer) {
-        clearInterval(rooms[roomId].timer);
-      }
+  // 방 참가 및 생성
+  socket.on('joinRoom', ({ roomId, colorCount, width, height, timeLimit }) => {
+    const rId = roomId.trim() || 'default-room';
+    
+    // 최대 색상 수 32개 허용으로 수정 완료
+    const safeColorCount = Math.min(Math.max(parseInt(colorCount) || 16, 2), 32);
+    const safeWidth = Math.min(Math.max(parseInt(width) || 12, 4), 30);
+    const safeHeight = Math.min(Math.max(parseInt(height) || 12, 4), 30);
+    const safeTimeLimit = Math.min(Math.max(parseInt(timeLimit) || 60, 10), 300);
 
-      const selectedMode = MODE_CONFIG[mode] ? mode : 'normal';
-      const config = MODE_CONFIG[selectedMode];
+    socket.join(rId);
+    socket.roomId = rId;
 
-      // 파라미터 sanitization
-      const safeColorCount = Math.min(Math.max(parseInt(colorCount) || 16, 2), 20);
-      const safeTimeLimit = Math.min(Math.max(parseInt(timeLimit) || 86400, 10), 86400);
-
-      rooms[roomId] = {
-        mode: selectedMode,
-        config,
+    if (!rooms[rId]) {
+      rooms[rId] = {
+        players: {},
         colorCount: safeColorCount,
+        width: safeWidth,
+        height: safeHeight,
         timeLimit: safeTimeLimit,
         timeRemaining: safeTimeLimit,
-        players: {},
-        timer: null
+        timerInterval: null
       };
+    }
 
-      rooms[roomId].timer = setInterval(() => {
-        if (!rooms[roomId]) {
-          clearInterval(rooms[roomId]?.timer);
-          return;
-        }
+    const room = rooms[rId];
 
-        if (rooms[roomId].timeRemaining > 0) {
-          rooms[roomId].timeRemaining--;
-          io.to(roomId).emit('updateTime', { timeRemaining: rooms[roomId].timeRemaining });
-        } else {
-          clearInterval(rooms[roomId].timer);
-          io.to(roomId).emit('gameOver', { winnerId: null, reason: '제한 시간이 종료되었습니다!' });
+    // 플레이어 보드 초기화
+    room.players[socket.id] = {
+      board: createBoard(room.width, room.height, room.colorCount),
+      cleared: false,
+      moves: 0
+    };
+
+    // 타임아웃 타이머 시작 (첫 플레이어 입장 시)
+    if (!room.timerInterval) {
+      room.timerInterval = setInterval(() => {
+        room.timeRemaining--;
+        io.to(rId).emit('timeUpdate', { timeRemaining: room.timeRemaining });
+
+        if (room.timeRemaining <= 0) {
+          clearInterval(room.timerInterval);
+          room.timerInterval = null;
+          io.to(rId).emit('gameOver', { reason: '시간 초과! 게임이 종료되었습니다.' });
         }
       }, 1000);
     }
 
-    const room = rooms[roomId];
-    room.players[socket.id] = {
-      nickname: nickname || '익명',
-      score: 0,
-      board: generateBoard(room.config, room.colorCount)
-    };
-
+    // colorCount 포함하여 내 보드 정보 클라이언트에 전송 (동기화 버그 수정 완료)
     socket.emit('initMyBoard', {
       board: room.players[socket.id].board,
       timeRemaining: room.timeRemaining,
-      config: room.config
+      config: {
+        width: room.width,
+        height: room.height,
+        timeLimit: room.timeLimit
+      },
+      colorCount: room.colorCount
     });
 
-    broadcastScores(roomId);
+    // 방의 접속자 수 갱신 알림
+    io.to(rId).emit('roomInfo', { playerCount: Object.keys(room.players).length });
   });
 
-  socket.on('clickTile', ({ roomId, r, c }) => {
-    const room = rooms[roomId];
-    if (!room || room.timeRemaining <= 0) return;
+  // 타일 클릭 (색상 선택)
+  socket.on('clickTile', ({ selectedColor }) => {
+    const rId = socket.roomId;
+    if (!rId || !rooms[rId]) return;
 
+    const room = rooms[rId];
     const player = room.players[socket.id];
+    if (!player || player.cleared || room.timeRemaining <= 0) return;
 
-    // 좌표 타입 및 범위 유효성 검사 (서버 Down 방지)
-    if (
-      !player ||
-      typeof r !== 'number' || typeof c !== 'number' ||
-      r < 0 || r >= room.config.rows ||
-      c < 0 || c >= room.config.cols ||
-      player.board[r][c] !== -1
-    ) return;
+    const currentColor = player.board[0][0];
+    if (currentColor === selectedColor) return;
 
-    const removedCount = checkAndRemoveTiles(player.board, r, c, room.config.rows, room.config.cols);
-    const hit = removedCount > 0;
+    // Flood Fill 수행
+    floodFill(player.board, currentColor, selectedColor);
+    player.moves++;
 
-    if (hit) {
-      player.score += removedCount;
-    }
-
-    // 보드 셔플/리필 상태 확인 및 판 반영
-    const shuffled = ensureValidBoard(player.board, room.config, room.colorCount);
-
-    socket.emit('updateMyBoard', {
+    // 보드 상태 클라이언트에 전송
+    socket.emit('updateBoard', {
       board: player.board,
-      hit,
-      shuffled
+      moves: player.moves
     });
 
-    broadcastScores(roomId);
-
-    if (player.score >= room.config.winScore) {
-      if (room.timer) clearInterval(room.timer);
-      io.to(roomId).emit('gameOver', {
-        winnerId: socket.id,
-        reason: `${player.nickname}님이 ${room.config.winScore}점을 달성했습니다!`
-      });
-    }
-  });
-
-  socket.on('getHint', ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-    const player = room.players[socket.id];
-    if (!player) return;
-
-    const hintPos = findValidMove(player.board, room.config.rows, room.config.cols);
-    socket.emit('receiveHint', hintPos);
-  });
-
-  socket.on('disconnect', () => {
-    for (const roomId in rooms) {
-      if (rooms[roomId].players[socket.id]) {
-        delete rooms[roomId].players[socket.id];
-
-        if (Object.keys(rooms[roomId].players).length === 0) {
-          if (rooms[roomId].timer) clearInterval(rooms[roomId].timer);
-          delete rooms[roomId];
-        } else {
-          broadcastScores(roomId);
+    // 클리어 여부 확인
+    if (isBoardCleared(player.board)) {
+      player.cleared = true;
+      socket.emit('gameCleared', { moves: player.moves, timeLeft: room.timeRemaining });
+      
+      // 방 내의 모든 유저가 클리어했는지 확인
+      const allCleared = Object.values(room.players).every(p => p.cleared);
+      if (allCleared) {
+        if (room.timerInterval) {
+          clearInterval(room.timerInterval);
+          room.timerInterval = null;
         }
-        break;
+        io.to(rId).emit('allPlayersCleared');
       }
     }
+  });
+
+  // 힌트 요청
+  socket.on('requestHint', () => {
+    const rId = socket.roomId;
+    if (!rId || !rooms[rId]) return;
+
+    const room = rooms[rId];
+    const player = room.players[socket.id];
+    if (!player || player.cleared) return;
+
+    const hintColor = getBestHintColor(player.board, room.colorCount);
+    socket.emit('receiveHint', { hintColor });
+  });
+
+  // 연결 해제
+  socket.on('disconnect', () => {
+    const rId = socket.roomId;
+    if (rId && rooms[rId]) {
+      delete rooms[rId].players[socket.id];
+      const remainingPlayers = Object.keys(rooms[rId].players).length;
+
+      if (remainingPlayers === 0) {
+        if (rooms[rId].timerInterval) {
+          clearInterval(rooms[rId].timerInterval);
+        }
+        delete rooms[rId];
+      } else {
+        io.to(rId).emit('roomInfo', { playerCount: remainingPlayers });
+      }
+    }
+    console.log(`클라이언트 퇴장: ${socket.id}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+  console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
