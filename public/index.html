@@ -3,352 +3,628 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Color Tile - 천후개조 컬러타일</title>
+  <title>컬러 타일 천후개조</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Pretendard', -apple-system, sans-serif;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
-      background-color: #0f172a;
-      color: #f8fafc;
+      background-color: #0d1117;
+      color: #e6edf3;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
-      padding: 16px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 900px;
-      background-color: #1e293b;
-      padding: 24px;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    }
-
-    h1 {
-      text-align: center;
-      font-size: 1.8rem;
-      margin-bottom: 20px;
-      color: #38bdf8;
+      padding: 10px;
     }
 
     .hidden { display: none !important; }
 
-    .form-group { margin-bottom: 14px; }
-    label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: #94a3b8; }
-    input, select {
-      width: 100%; padding: 12px; border-radius: 8px;
-      border: 1px solid #334155; background-color: #0f172a; color: #fff; font-size: 1rem;
+    /* --- 로비 화면 --- */
+    .lobby-card {
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      padding: 30px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.6);
+      text-align: center;
     }
 
-    .btn {
-      width: 100%; padding: 14px; border-radius: 8px; border: none;
-      background-color: #0284c7; color: white; font-size: 1rem; font-weight: bold;
-      cursor: pointer; transition: background 0.2s;
-    }
-    .btn:hover { background-color: #0369a1; }
-    .btn-secondary { background-color: #475569; }
-    .btn-secondary:hover { background-color: #334155; }
+    .lobby-card h1 { color: #58a6ff; font-size: 26px; margin-bottom: 25px; }
 
-    .game-layout {
-      display: grid;
-      grid-template-columns: 1fr 240px;
-      gap: 20px;
+    .form-group { margin-bottom: 20px; text-align: left; }
+    .form-group label {
+      display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #8b949e;
+    }
+    .form-group input[type="text"], .form-group select {
+      width: 100%; padding: 12px; background-color: #21262d; color: #f0f6fc;
+      border: 1px solid #30363d; border-radius: 8px; font-size: 15px; outline: none;
+    }
+    .form-group input[type="text"]:focus, .form-group select:focus { border-color: #58a6ff; }
+
+    .checkbox-group {
+      display: flex; align-items: center; justify-content: space-between;
+      background-color: #21262d; padding: 12px 15px; border-radius: 8px;
+      border: 1px solid #30363d; cursor: pointer;
+    }
+    .checkbox-group label { margin-bottom: 0; cursor: pointer; color: #c9d1d9; }
+    .checkbox-group input[type="checkbox"] {
+      width: 18px; height: 18px; accent-color: #58a6ff; cursor: pointer;
     }
 
-    @media (max-width: 768px) {
-      .game-layout { grid-template-columns: 1fr; }
+    .btn-start {
+      width: 100%; padding: 14px; font-size: 17px; font-weight: bold;
+      background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); transition: filter 0.2s;
+    }
+    .btn-start:hover { filter: brightness(1.15); }
+
+    /* --- 게임 메인 레이아웃 --- */
+    .game-container {
+      display: flex; gap: 20px; align-items: flex-start; justify-content: center;
+      max-width: 1400px; width: 100%;
     }
 
-    .status-bar {
+    .sidebar {
+      width: 220px; background-color: #161b22; border: 1px solid #30363d;
+      border-radius: 14px; padding: 16px; flex-shrink: 0;
+    }
+
+    .sidebar h3 {
+      font-size: 16px; color: #58a6ff; margin-bottom: 15px;
+      padding-bottom: 10px; border-bottom: 1px solid #30363d;
+    }
+
+    .player-list-container { display: flex; flex-direction: column; gap: 10px; }
+
+    .player-card {
+      background-color: #21262d; border: 1px solid #30363d;
+      border-radius: 8px; padding: 10px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .player-card.my-card { border-color: #58a6ff; background-color: #1f293e; }
+
+    .player-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+    .rank-badge {
+      font-size: 11px; font-weight: bold; background-color: #30363d;
+      color: #8b949e; padding: 2px 6px; border-radius: 4px;
+    }
+    .nickname {
+      font-size: 14px; font-weight: 600; color: #c9d1d9;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;
+    }
+    .me-tag { font-size: 11px; color: #58a6ff; }
+    .score-text { font-size: 14px; font-weight: bold; color: #d29922; }
+
+    .main-section { display: flex; flex-direction: column; align-items: flex-end; }
+
+    .top-bar {
       display: flex; justify-content: space-between; align-items: center;
-      background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
+      width: 100%; margin-bottom: 10px; gap: 10px;
     }
 
-    #board {
-      display: grid; gap: 2px; background-color: #334155;
-      padding: 6px; border-radius: 8px; width: 100%; aspect-ratio: 4 / 3;
+    .left-tools { display: flex; align-items: center; gap: 15px; }
+
+    .time-box { font-size: 16px; font-weight: 600; color: #58a6ff; }
+    .time-warning { color: #f85149; animation: blink 1s infinite; }
+
+    .btn-hint {
+      padding: 8px 16px; background-color: #21262d; color: #8b949e;
+      border: 1px solid #30363d; border-radius: 6px; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-hint.active {
+      background: #d29922; color: #0d1117; border-color: #f1e05a;
+      box-shadow: 0 0 10px rgba(210, 153, 34, 0.5);
+      animation: pulse-hint 1.2s infinite;
+    }
+
+    @keyframes pulse-hint {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    @keyframes blink { 50% { opacity: 0.5; } }
+
+    .btn-lobby {
+      padding: 8px 16px; background-color: #21262d; color: #8b949e;
+      border: 1px solid #30363d; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .btn-lobby:hover { background-color: #30363d; color: #fff; }
+
+    .grid {
+      display: grid;
+      gap: 2px;
+      background-color: #161b22;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid #30363d;
     }
 
     .tile {
-      width: 100%; height: 100%; border-radius: 3px; cursor: pointer;
-      transition: transform 0.05s, opacity 0.2s;
+      border-radius: 4px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; user-select: none;
+      transition: transform 0.08s ease, filter 0.08s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
-    .tile:hover { transform: scale(1.08); z-index: 2; }
-    .tile.empty {
-      background-color: #1e293b !important;
-      border: 1px dashed #334155;
+    .tile:hover { transform: scale(1.15); z-index: 2; filter: brightness(1.15); }
+
+    .empty {
+      background-color: #0d1117 !important; border-radius: 4px; cursor: pointer;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
     }
-    .tile.hint-target {
-      animation: hintPulse 0.8s infinite alternate;
-      border: 2px solid #f59e0b !important;
+    .empty:hover { background-color: #1c2128 !important; }
+
+    .empty.hint-highlight {
+      background-color: #d29922 !important;
+      box-shadow: 0 0 12px #d29922, inset 0 0 4px #ffffff;
+      animation: hintBlink 0.5s infinite alternate;
+      z-index: 5;
     }
 
-    @keyframes hintPulse {
-      0% { transform: scale(1); box-shadow: 0 0 0 rgba(245, 158, 11, 0.8); }
-      100% { transform: scale(1.15); box-shadow: 0 0 10px rgba(245, 158, 11, 1); }
+    @keyframes hintBlink {
+      from { opacity: 0.6; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1.15); }
     }
 
-    .scoreboard {
-      background-color: #0f172a;
-      padding: 16px;
-      border-radius: 8px;
+    .toast-msg {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: #d29922; color: #0d1117; font-weight: bold; padding: 10px 20px;
+      border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 200;
+      display: none; font-size: 14px;
     }
-    .scoreboard h3 { margin-bottom: 12px; color: #38bdf8; font-size: 1.1rem; }
-    .player-rank {
-      display: flex; justify-content: space-between; padding: 8px 0;
-      border-bottom: 1px solid #1e293b; font-size: 0.95rem;
-    }
-    .player-rank.me { color: #f59e0b; font-weight: bold; }
 
-    .controls { display: flex; gap: 10px; margin-top: 16px; }
-
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 10;
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(13, 17, 23, 0.85); align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(4px);
     }
-    .modal-content {
-      background-color: #1e293b; padding: 30px; border-radius: 12px; text-align: center;
-      max-width: 400px; width: 90%;
+    .modal.active { display: flex; }
+
+    .modal-card {
+      background-color: #161b22; border: 1px solid #30363d; border-radius: 14px;
+      padding: 28px; width: 90%; max-width: 400px; text-align: center;
+    }
+
+    .modal-card h2 { font-size: 26px; margin-bottom: 8px; }
+    .modal-card p { font-size: 14px; margin-bottom: 18px; color: #8b949e; }
+
+    .modal-leaderboard {
+      background-color: #21262d; border-radius: 8px; padding: 10px;
+      margin-bottom: 20px; max-height: 200px; overflow-y: auto; text-align: left;
+    }
+
+    .modal-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 10px; border-bottom: 1px solid #30363d; font-size: 14px;
+    }
+    .modal-row:last-child { border-bottom: none; }
+    .modal-row.rank-1 { color: #d29922; font-weight: bold; }
+
+    .btn-modal {
+      width: 100%; padding: 12px; font-size: 15px; font-weight: bold;
+      background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <h1>⚔️ Color Tile 멀티 대전</h1>
+  <div id="toast" class="toast-msg"></div>
 
-    <!-- 로비 -->
-    <div id="lobby-view">
-      <div class="form-group">
-        <label for="player-name">닉네임</label>
-        <input type="text" id="player-name" placeholder="닉네임을 입력하세요">
-      </div>
-      <div class="form-group">
-        <label for="room-id">방 이름</label>
-        <input type="text" id="room-id" value="battle-room">
-      </div>
-      <div class="form-group">
-        <label for="target-score">승리 목표 점수</label>
-        <select id="target-score">
-          <option value="200" selected>200점 먼저 달성</option>
-          <option value="500">500점 먼저 달성</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="color-count">색상 수</label>
-        <select id="color-count">
-          <option value="6">6개 (쉬움)</option>
-          <option value="8" selected>8개 (보통)</option>
-          <option value="12">12개 (어려움)</option>
-        </select>
-      </div>
-      <button class="btn" id="join-btn">대전 방 참가하기</button>
+  <!-- 로비 화면 -->
+  <div id="lobby-view" class="lobby-card">
+    <h1>🎨 컬러 타일 천후개조</h1>
+    
+    <div class="form-group">
+      <label for="nickname-input">👤 닉네임 설정</label>
+      <input type="text" id="nickname-input" value="플레이어1" placeholder="닉네임 입력">
     </div>
 
-    <!-- 게임 화면 -->
-    <div id="game-view" class="hidden">
-      <div class="status-bar">
-        <span>⏱️ 남은 시간: <strong id="time-display">120</strong>s</span>
-        <span>🎯 목표 점수: <strong id="target-score-display">200</strong>점</span>
+    <div class="form-group">
+      <label for="room-input">🔑 방 코드</label>
+      <input type="text" id="room-input" value="ROOM_1" placeholder="예: ROOM_123">
+    </div>
+
+    <div class="form-group">
+      <label for="mode-select">🎮 난이도 모드 선택</label>
+      <select id="mode-select">
+        <option value="normal" selected>일반 모드 (12×22 / 200점 목표)</option>
+        <option value="hard">하드 모드 (20×30 / 500점 목표)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="color-select">🎨 색상 개수 선택</label>
+      <select id="color-select">
+        <option value="8">8개 (매우 쉬움)</option>
+        <option value="12">12개 (쉬움)</option>
+        <option value="16" selected>16개 (보통)</option>
+        <option value="20">20개 (어려움)</option>
+        <option value="24">24개 (매우 어려움)</option>
+        <option value="32">32개 (지옥 난이도)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="time-select">⏱️ 제한 시간 설정</label>
+      <select id="time-select">
+        <option value="60">1분 (60초)</option>
+        <option value="120">2분 (120초)</option>
+        <option value="180">3분 (180초)</option>
+        <option value="300">5분 (300초)</option>
+        <option value="86400" selected>24시간 (무제한)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <div class="checkbox-group" onclick="document.getElementById('icon-toggle').click();">
+        <label for="icon-toggle">🔢 타일 위 숫자 라벨 표시</label>
+        <input type="checkbox" id="icon-toggle" checked onclick="event.stopPropagation()">
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startGame()">게임 시작하기</button>
+  </div>
+
+  <!-- 게임 메인 화면 -->
+  <div id="game-view" class="game-container hidden">
+    <div class="sidebar">
+      <h3>👥 플레이어 현황</h3>
+      <div id="player-list" class="player-list-container"></div>
+    </div>
+
+    <div class="main-section">
+      <div class="top-bar">
+        <div class="left-tools">
+          <div class="time-box">⏱️ 남은 시간: <span id="timer">--:--</span></div>
+          <button id="btn-hint" class="btn-hint" onclick="useHint()">💡 힌트 (60초)</button>
+        </div>
+        <button class="btn-lobby" onclick="resetToLobby()">로비로 나가기</button>
       </div>
 
-      <div class="game-layout">
-        <div>
-          <div id="board"></div>
-          <div class="controls">
-            <button class="btn btn-secondary" id="hint-btn">💡 힌트</button>
-            <button class="btn" id="leave-btn">나가기</button>
-          </div>
-        </div>
-
-        <!-- 실시간 점수판 -->
-        <div class="scoreboard">
-          <h3>🏆 플레이어 순위</h3>
-          <div id="player-list"></div>
-        </div>
-      </div>
+      <div id="board" class="grid"></div>
     </div>
   </div>
 
-  <!-- 모달 -->
-  <div id="modal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <h2 id="modal-title" style="margin-bottom:12px; color:#38bdf8;">결과</h2>
-      <p id="modal-message" style="margin-bottom:20px; color:#cbd5e1; white-space: pre-line;"></p>
-      <button class="btn" id="modal-close-btn">확인</button>
+  <!-- 결과 모달 팝업 -->
+  <div id="modal" class="modal">
+    <div class="modal-card">
+      <h2 id="modal-title">🏆 승리!</h2>
+      <p id="modal-desc">목표 점수를 달성하셨습니다!</p>
+      <div id="modal-leaderboard" class="modal-leaderboard"></div>
+      <button class="btn-modal" onclick="resetToLobby()">로비로 이동</button>
     </div>
   </div>
 
-  <script>
-    const socket = io();
+<script>
+  const socket = io();
 
-    let board = [];
-    let activeColors = [];
-    let myScore = 0;
-    let hintTimeout = null;
+  const SYMBOLS = Array.from({length: 32}, (_, i) => (i + 1).toString());
 
-    function generateEyeFriendlyColors(count) {
-      const colors = [];
-      const hueStep = 360 / count;
-      for (let i = 0; i < count; i++) {
-        colors.push(`hsl(${Math.round(i * hueStep)}, 75%, 55%)`);
-      }
-      return colors;
-    }
+  let board = [];
+  let timeRemaining = 0;
+  let currentRoomId = "ROOM_1";
+  let showIcons = true;
+  let activeColors = [];
+  let lastScores = {};
+  
+  let currentConfig = { rows: 12, cols: 22, winScore: 200 };
 
-    document.getElementById('join-btn').addEventListener('click', () => {
-      const playerName = document.getElementById('player-name').value;
-      const roomId = document.getElementById('room-id').value;
-      const targetScore = parseInt(document.getElementById('target-score').value);
-      const colorCount = parseInt(document.getElementById('color-count').value);
+  let hintSeconds = 60;
+  let hintTimer = null;
 
-      socket.emit('joinRoom', {
-        roomId,
-        playerName,
-        targetScore,
-        colorCount,
-        width: 16,
-        height: 12,
-        timeLimit: 180
+  function generateEyeFriendlyColors(count) {
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+      const hue = Math.floor((360 / count) * i);
+      const sat = 50 + (i % 3) * 5;
+      const light = 42 + (i % 2) * 12;
+
+      const textColor = light > 52 ? '#0f172a' : '#ffffff';
+
+      colors.push({
+        background: `hsl(${hue}, ${sat}%, ${light}%)`,
+        textColor: textColor
       });
-    });
+    }
+    return colors;
+  }
 
-    socket.on('initMyBoard', ({ board: myBoard, targetScore, timeRemaining, colorCount }) => {
-      board = myBoard;
-      myScore = 0;
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
 
-      activeColors = generateEyeFriendlyColors(colorCount);
+  function playCorrectSound() {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+  }
 
-      document.getElementById('target-score-display').innerText = targetScore;
-      document.getElementById('time-display').innerText = timeRemaining;
+  function playWrongSound() {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(130, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+  }
 
-      document.getElementById('lobby-view').classList.add('hidden');
-      document.getElementById('game-view').classList.remove('hidden');
-      document.getElementById('modal').classList.add('hidden');
+  function resetHintTimer() {
+    clearInterval(hintTimer);
+    hintSeconds = 60;
+    const btnHint = document.getElementById('btn-hint');
+    btnHint.classList.remove('active');
+    btnHint.innerText = `💡 힌트 (${hintSeconds}초)`;
 
-      buildBoardGrid();
-      renderBoard();
-    });
+    clearHintHighlights();
 
-    function buildBoardGrid() {
-      const boardElement = document.getElementById('board');
-      boardElement.innerHTML = '';
-      const height = board.length;
-      const width = board[0].length;
-
-      boardElement.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
-      boardElement.style.gridTemplateRows = `repeat(${height}, 1fr)`;
-
-      for (let r = 0; r < height; r++) {
-        for (let c = 0; c < width; c++) {
-          const tile = document.createElement('div');
-          tile.className = 'tile';
-          tile.dataset.row = r;
-          tile.dataset.col = c;
-
-          tile.addEventListener('click', () => {
-            clearHint();
-            socket.emit('clickTile', { r, c });
-          });
-
-          boardElement.appendChild(tile);
-        }
+    hintTimer = setInterval(() => {
+      hintSeconds--;
+      if (hintSeconds <= 0) {
+        clearInterval(hintTimer);
+        btnHint.classList.add('active');
+        btnHint.innerText = "💡 힌트 보기!";
+      } else {
+        btnHint.innerText = `💡 힌트 (${hintSeconds}초)`;
       }
+    }, 1000);
+  }
+
+  function useHint() {
+    const btnHint = document.getElementById('btn-hint');
+    if (!btnHint.classList.contains('active')) {
+      showToast(`⏳ 힌트는 미득점 상태로 ${hintSeconds}초 후에 활성화됩니다!`);
+      return;
+    }
+    socket.emit('getHint', { roomId: currentRoomId });
+  }
+
+  function clearHintHighlights() {
+    document.querySelectorAll('.hint-highlight').forEach(el => {
+      el.classList.remove('hint-highlight');
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2500);
+  }
+
+  function startGame() {
+    initAudio();
+    const nickname = document.getElementById('nickname-input').value.trim() || "익명";
+    currentRoomId = document.getElementById('room-input').value.trim() || "ROOM_1";
+    const selectedMode = document.getElementById('mode-select').value;
+    const selectedColorCount = parseInt(document.getElementById('color-select').value, 10);
+    const timeLimit = parseInt(document.getElementById('time-select').value, 10);
+    showIcons = document.getElementById('icon-toggle').checked;
+
+    activeColors = generateEyeFriendlyColors(selectedColorCount);
+
+    socket.emit('joinRoom', {
+      roomId: currentRoomId,
+      colorCount: selectedColorCount,
+      timeLimit,
+      nickname,
+      mode: selectedMode
+    });
+  }
+
+  function resetToLobby() {
+    location.reload();
+  }
+
+  socket.on('initMyBoard', ({ board: myBoard, timeRemaining: serverTime, config }) => {
+    board = myBoard;
+    timeRemaining = serverTime;
+    currentConfig = config;
+
+    document.getElementById('lobby-view').classList.add('hidden');
+    document.getElementById('game-view').classList.remove('hidden');
+    document.getElementById('modal').classList.remove('active');
+
+    buildBoardElements();
+    renderBoard();
+    updateTimerDisplay();
+    resetHintTimer();
+  });
+
+  socket.on('updateMyBoard', ({ board: myBoard, hit, shuffled }) => {
+    board = myBoard;
+    renderBoard();
+
+    if (hit) {
+      playCorrectSound();
+      resetHintTimer();
+    } else {
+      playWrongSound();
     }
 
-    function renderBoard() {
-      const tiles = document.querySelectorAll('#board .tile');
-      tiles.forEach(tile => {
-        const r = parseInt(tile.dataset.row);
-        const c = parseInt(tile.dataset.col);
+    if (shuffled) {
+      showToast('🔀 매칭 가능한 수가 없어 타일 위치를 새로 섞었습니다!');
+    }
+  });
+
+  socket.on('receiveHint', (hintPos) => {
+    clearHintHighlights();
+    if (hintPos) {
+      const tile = document.getElementById(`tile-${hintPos.r}-${hintPos.c}`);
+      if (tile) {
+        tile.classList.add('hint-highlight');
+        showToast('💡 강조된 빈칸을 클릭하세요!');
+      }
+    } else {
+      showToast('💡 맞출 자리가 없어 맵이 곧 섞입니다.');
+    }
+  });
+
+  socket.on('updateScores', ({ scores, winScore }) => {
+    lastScores = scores;
+    const playerListEl = document.getElementById('player-list');
+    playerListEl.innerHTML = '';
+
+    const sortedPlayers = Object.keys(scores).map(id => ({
+      id,
+      nickname: scores[id].nickname,
+      score: scores[id].score
+    })).sort((a, b) => b.score - a.score);
+
+    sortedPlayers.forEach((player, index) => {
+      const isMe = player.id === socket.id;
+      const card = document.createElement('div');
+      card.className = `player-card ${isMe ? 'my-card' : ''}`;
+      
+      card.innerHTML = `
+        <div class="player-info">
+          <span class="rank-badge">${index + 1}위</span>
+          <span class="nickname" title="${player.nickname}">${player.nickname}</span>
+          ${isMe ? '<span class="me-tag">(나)</span>' : ''}
+        </div>
+        <div class="score-text">${player.score} / ${winScore}</div>
+      `;
+
+      playerListEl.appendChild(card);
+    });
+  });
+
+  socket.on('updateTime', ({ timeRemaining: serverTime }) => {
+    timeRemaining = serverTime;
+    updateTimerDisplay();
+  });
+
+  socket.on('gameOver', ({ winnerId, reason }) => {
+    const isWinner = winnerId === socket.id;
+    let msg = isWinner ? `🏆 목표 점수를 먼저 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 달성했습니다.` : `⏰ ${reason}`);
+    endGame(isWinner, msg);
+  });
+
+  function buildBoardElements() {
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = '';
+
+    const tileSize = currentConfig.cols === 30 ? 24 : 34;
+    const fontSize = currentConfig.cols === 30 ? 11 : 13;
+
+    boardEl.style.gridTemplateColumns = `repeat(${currentConfig.cols}, ${tileSize}px)`;
+    boardEl.style.gridTemplateRows = `repeat(${currentConfig.rows}, ${tileSize}px)`;
+
+    for (let r = 0; r < currentConfig.rows; r++) {
+      for (let c = 0; c < currentConfig.cols; c++) {
+        const tile = document.createElement('div');
+        tile.id = `tile-${r}-${c}`;
+        tile.style.width = `${tileSize}px`;
+        tile.style.height = `${tileSize}px`;
+        tile.style.fontSize = `${fontSize}px`;
+        tile.addEventListener('click', () => handleTileClick(r, c));
+        boardEl.appendChild(tile);
+      }
+    }
+  }
+
+  function renderBoard() {
+    clearHintHighlights();
+    for (let r = 0; r < currentConfig.rows; r++) {
+      for (let c = 0; c < currentConfig.cols; c++) {
+        const tile = document.getElementById(`tile-${r}-${c}`);
+        if (!tile) continue;
         const colorIdx = board[r][c];
 
-        if (colorIdx === null) {
+        if (colorIdx === -1) {
           tile.className = 'tile empty';
-          tile.style.backgroundColor = '';
+          tile.style.background = '';
+          tile.innerText = '';
         } else {
           tile.className = 'tile';
-          tile.style.backgroundColor = activeColors[colorIdx] || '#000';
-        }
-      });
-    }
-
-    socket.on('updateBoard', ({ board: updatedBoard, score: updatedScore }) => {
-      board = updatedBoard;
-      myScore = updatedScore;
-      renderBoard();
-    });
-
-    socket.on('timeUpdate', ({ timeRemaining }) => {
-      document.getElementById('time-display').innerText = timeRemaining;
-    });
-
-    socket.on('roomStatusUpdate', ({ players, targetScore }) => {
-      const listElement = document.getElementById('player-list');
-      listElement.innerHTML = '';
-
-      // 점수 순 내림차순 정렬
-      players.sort((a, b) => b.score - a.score);
-
-      players.forEach(p => {
-        const item = document.createElement('div');
-        const isMe = p.id === socket.id;
-        item.className = `player-rank ${isMe ? 'me' : ''}`;
-        item.innerHTML = `
-          <span>${p.name}${isMe ? ' (나)' : ''}</span>
-          <span>${p.score} / ${targetScore}점</span>
-        `;
-        listElement.appendChild(item);
-      });
-    });
-
-    // 힌트
-    document.getElementById('hint-btn').addEventListener('click', () => {
-      socket.emit('requestHint');
-    });
-
-    socket.on('receiveHint', ({ hintPos }) => {
-      clearHint();
-      if (hintPos) {
-        const target = document.querySelector(`.tile[data-row="${hintPos.r}"][data-col="${hintPos.c}"]`);
-        if (target) {
-          target.classList.add('hint-target');
-          hintTimeout = setTimeout(clearHint, 3000);
+          const colorObj = activeColors[colorIdx] || { background: '#333', textColor: '#fff' };
+          tile.style.background = colorObj.background;
+          tile.style.color = colorObj.textColor;
+          tile.innerText = showIcons ? SYMBOLS[colorIdx % SYMBOLS.length] : '';
         }
       }
-    });
-
-    function clearHint() {
-      if (hintTimeout) clearTimeout(hintTimeout);
-      document.querySelectorAll('.tile').forEach(t => t.classList.remove('hint-target'));
     }
+  }
 
-    // 승리/종료 모달
-    socket.on('matchEnded', ({ winnerName, winnerScore, reason }) => {
-      showModal('🏆 경기 종료', `우승자: ${winnerName} (${winnerScore}점)\n${reason}`);
-    });
+  function handleTileClick(r, c) {
+    if (board[r][c] !== -1 || timeRemaining <= 0) return;
+    socket.emit('clickTile', { roomId: currentRoomId, r, c });
+  }
 
-    function showModal(title, message) {
-      document.getElementById('modal-title').innerText = title;
-      document.getElementById('modal-message').innerText = message;
-      document.getElementById('modal').classList.remove('hidden');
+  function updateTimerDisplay() {
+    const hours = Math.floor(timeRemaining / 3600);
+    const minutes = Math.floor((timeRemaining % 3600) / 60);
+    const seconds = timeRemaining % 60;
+
+    let timeStr = "";
+    if (hours > 0) {
+      timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    } else {
+      timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
+    
+    const timerEl = document.getElementById('timer');
+    timerEl.innerText = timeStr;
 
-    document.getElementById('modal-close-btn').addEventListener('click', () => {
-      document.getElementById('modal').classList.add('hidden');
+    if (timeRemaining <= 10) {
+      timerEl.classList.add('time-warning');
+    } else {
+      timerEl.classList.remove('time-warning');
+    }
+  }
+
+  function endGame(isVictory, message) {
+    clearInterval(hintTimer);
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalDesc = document.getElementById('modal-desc');
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+
+    modalTitle.innerText = isVictory ? "🏆 승리!" : "💀 게임 종료";
+    modalTitle.style.color = isVictory ? "#58a6ff" : "#f85149";
+    modalDesc.innerText = message;
+
+    modalLeaderboard.innerHTML = '';
+    const sorted = Object.keys(lastScores).map(id => ({
+      id,
+      nickname: lastScores[id].nickname,
+      score: lastScores[id].score
+    })).sort((a, b) => b.score - a.score);
+
+    sorted.forEach((p, idx) => {
+      const row = document.createElement('div');
+      row.className = `modal-row ${idx === 0 ? 'rank-1' : ''}`;
+      row.innerHTML = `
+        <span>${idx + 1}위: ${p.nickname} ${p.id === socket.id ? '(나)' : ''}</span>
+        <span><strong>${p.score}점</strong></span>
+      `;
+      modalLeaderboard.appendChild(row);
     });
 
-    document.getElementById('leave-btn').addEventListener('click', () => {
-      location.reload();
-    });
-  </script>
+    modal.classList.add('active');
+  }
+</script>
 </body>
 </html>
