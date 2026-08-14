@@ -1,264 +1,621 @@
 const express = require('express');
+
 const http = require('http');
+
 const { Server } = require('socket.io');
-const path = require('path');
+
+
 
 const app = express();
+
 const server = http.createServer(app);
+
 const io = new Server(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+
+
+app.use(express.static('public'));
+
+
+
+// 모드별 설정 값
+
+const MODE_CONFIG = {
+
+  normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200, refillThreshold: 30 },
+
+  hard: { rows: 20, cols: 30, targetTileCount: 450, winScore: 500, refillThreshold: 40 }
+
+};
+
+
 
 const rooms = {};
 
-// 보드 생성 (25% 확률로 빈 공간 배치)
-function createBoard(width, height, colorCount) {
-  const board = [];
-  for (let r = 0; r < height; r++) {
-    const row = [];
-    for (let c = 0; c < width; c++) {
-      // 25% 확률로 빈 공간(null) 배치
-      if (Math.random() < 0.25) {
-        row.push(null);
-      } else {
-        row.push(Math.floor(Math.random() * colorCount));
+
+
+function findValidMove(board, rows, cols) {
+
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  
+
+  for (let r = 0; r < rows; r++) {
+
+    for (let c = 0; c < cols; c++) {
+
+      if (board[r][c] !== -1) continue;
+
+
+
+      const colorCounts = {};
+
+      for (const [dr, dc] of directions) {
+
+        let nr = r + dr;
+
+        let nc = c + dc;
+
+        while (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+
+          if (board[nr][nc] !== -1) {
+
+            const col = board[nr][nc];
+
+            colorCounts[col] = (colorCounts[col] || 0) + 1;
+
+            break;
+
+          }
+
+          nr += dr;
+
+          nc += dc;
+
+        }
+
       }
+
+
+
+      for (const col in colorCounts) {
+
+        if (colorCounts[col] >= 2) {
+
+          return { r, c };
+
+        }
+
+      }
+
     }
-    board.push(row);
+
   }
-  return board;
+
+  return null;
+
 }
 
-// 4방향 직선 레이저 타일 제거 로직
-function checkAndRemoveTiles(board, r, c) {
-  const height = board.length;
-  const width = board[0].length;
-  
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1] // 상, 하, 좌, 우
-  ];
 
-  const found = [];
+
+function countRemainingTiles(board, rows, cols) {
+
+  let count = 0;
+
+  for (let r = 0; r < rows; r++) {
+
+    for (let c = 0; c < cols; c++) {
+
+      if (board[r][c] !== -1) count++;
+
+    }
+
+  }
+
+  return count;
+
+}
+
+
+
+function ensureValidBoard(board, config, colorCount) {
+
+  const { rows, cols, targetTileCount, refillThreshold } = config;
+
+  let remaining = countRemainingTiles(board, rows, cols);
+
+
+
+  if (remaining < refillThreshold || !findValidMove(board, rows, cols)) {
+
+    const tiles = [];
+
+    for (let r = 0; r < rows; r++) {
+
+      for (let c = 0; c < cols; c++) {
+
+        if (board[r][c] !== -1) tiles.push(board[r][c]);
+
+      }
+
+    }
+
+
+
+    while (tiles.length < targetTileCount) {
+
+      tiles.push(Math.floor(Math.random() * colorCount));
+
+    }
+
+
+
+    for (let i = tiles.length - 1; i > 0; i--) {
+
+      const j = Math.floor(Math.random() * (i + 1));
+
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+
+    }
+
+
+
+    for (let r = 0; r < rows; r++) {
+
+      for (let c = 0; c < cols; c++) {
+
+        board[r][c] = -1;
+
+      }
+
+    }
+
+
+
+    let placed = 0;
+
+    while (placed < targetTileCount) {
+
+      const r = Math.floor(Math.random() * rows);
+
+      const c = Math.floor(Math.random() * cols);
+
+      if (board[r][c] === -1) {
+
+        board[r][c] = tiles[placed++];
+
+      }
+
+    }
+
+  }
+
+
+
+  let attempts = 0;
+
+  while (!findValidMove(board, rows, cols) && attempts < 50) {
+
+    const tiles = [];
+
+    for (let r = 0; r < rows; r++) {
+
+      for (let c = 0; c < cols; c++) {
+
+        if (board[r][c] !== -1) tiles.push(board[r][c]);
+
+      }
+
+    }
+
+    for (let i = tiles.length - 1; i > 0; i--) {
+
+      const j = Math.floor(Math.random() * (i + 1));
+
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+
+    }
+
+    let idx = 0;
+
+    for (let r = 0; r < rows; r++) {
+
+      for (let c = 0; c < cols; c++) {
+
+        if (board[r][c] !== -1) board[r][c] = tiles[idx++];
+
+      }
+
+    }
+
+    attempts++;
+
+  }
+
+}
+
+
+
+function generateBoard(config, colorCount) {
+
+  const { rows, cols, targetTileCount } = config;
+
+  const board = Array.from({ length: rows }, () => Array(cols).fill(-1));
+
+  const tiles = [];
+
+
+
+  for (let i = 0; i < targetTileCount; i++) {
+
+    tiles.push(Math.floor(Math.random() * colorCount));
+
+  }
+
+
+
+  let placed = 0;
+
+  while (placed < targetTileCount) {
+
+    const r = Math.floor(Math.random() * rows);
+
+    const c = Math.floor(Math.random() * cols);
+
+    if (board[r][c] === -1) {
+
+      board[r][c] = tiles[placed++];
+
+    }
+
+  }
+
+
+
+  ensureValidBoard(board, config, colorCount);
+
+  return board;
+
+}
+
+
+
+function checkAndRemoveTiles(board, r, c, rows, cols) {
+
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  const foundTiles = [];
+
+
 
   for (const [dr, dc] of directions) {
+
     let nr = r + dr;
+
     let nc = c + dc;
-    while (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-      if (board[nr][nc] !== null) {
-        found.push({ r: nr, c: nc, color: board[nr][nc] });
-        break; // 각 방향별 첫번째 타일
+
+    while (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+
+      if (board[nr][nc] !== -1) {
+
+        foundTiles.push({ r: nr, c: nc, color: board[nr][nc] });
+
+        break;
+
       }
+
       nr += dr;
+
       nc += dc;
+
     }
+
   }
 
-  const colorGroups = {};
-  found.forEach(item => {
-    if (!colorGroups[item.color]) colorGroups[item.color] = [];
-    colorGroups[item.color].push(item);
+
+
+  const colorCounts = {};
+
+  foundTiles.forEach(tile => {
+
+    colorCounts[tile.color] = (colorCounts[tile.color] || 0) + 1;
+
   });
+
+
 
   let removedCount = 0;
-  Object.values(colorGroups).forEach(group => {
-    if (group.length >= 2) {
-      group.forEach(item => {
-        if (board[item.r][item.c] !== null) {
-          board[item.r][item.c] = null;
-          removedCount++;
-        }
-      });
+
+  foundTiles.forEach(tile => {
+
+    if (colorCounts[tile.color] >= 2) {
+
+      board[tile.r][tile.c] = -1;
+
+      removedCount++;
+
     }
+
   });
+
+
 
   return removedCount;
+
 }
 
-// 힌트 탐색
-function getBestHint(board) {
-  const height = board.length;
-  const width = board[0].length;
 
-  for (let r = 0; r < height; r++) {
-    for (let c = 0; c < width; c++) {
-      const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-      const found = [];
-      for (const [dr, dc] of directions) {
-        let nr = r + dr;
-        let nc = c + dc;
-        while (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-          if (board[nr][nc] !== null) {
-            found.push(board[nr][nc]);
-            break;
-          }
-          nr += dr;
-          nc += dc;
-        }
-      }
-      
-      const counts = {};
-      for (const col of found) {
-        counts[col] = (counts[col] || 0) + 1;
-        if (counts[col] >= 2) return { r, c };
-      }
-    }
-  }
-  return null;
-}
 
-io.on('connection', (socket) => {
-  console.log(`클라이언트 연결: ${socket.id}`);
+function broadcastScores(roomId) {
 
-  socket.on('joinRoom', ({ roomId, playerName, colorCount, width, height, targetScore, timeLimit }) => {
-    const rId = roomId.trim() || 'default-room';
-    const name = playerName.trim() || `플레이어_${socket.id.substring(0, 4)}`;
-    const safeTargetScore = parseInt(targetScore) || 200;
-    const safeColorCount = Math.min(Math.max(parseInt(colorCount) || 8, 2), 24);
-    const safeWidth = Math.min(Math.max(parseInt(width) || 16, 6), 30);
-    const safeHeight = Math.min(Math.max(parseInt(height) || 12, 6), 30);
-    const safeTimeLimit = Math.min(Math.max(parseInt(timeLimit) || 120, 10), 600);
+  if (!rooms[roomId]) return;
 
-    socket.join(rId);
-    socket.roomId = rId;
+  const scores = {};
 
-    if (!rooms[rId]) {
-      rooms[rId] = {
-        players: {},
-        targetScore: safeTargetScore,
-        colorCount: safeColorCount,
-        width: safeWidth,
-        height: safeHeight,
-        timeLimit: safeTimeLimit,
-        timeRemaining: safeTimeLimit,
-        timerInterval: null,
-        gameOver: false
-      };
-    }
+  for (const id in rooms[roomId].players) {
 
-    const room = rooms[rId];
+    scores[id] = {
 
-    room.players[socket.id] = {
-      id: socket.id,
-      name: name,
-      board: createBoard(room.width, room.height, room.colorCount),
-      score: 0
+      nickname: rooms[roomId].players[id].nickname,
+
+      score: rooms[roomId].players[id].score
+
     };
 
-    // 멀티플레이 타이머
-    if (!room.timerInterval) {
-      room.timerInterval = setInterval(() => {
-        if (room.gameOver) return;
-        room.timeRemaining--;
-        io.to(rId).emit('timeUpdate', { timeRemaining: room.timeRemaining });
-
-        if (room.timeRemaining <= 0) {
-          clearInterval(room.timerInterval);
-          room.timerInterval = null;
-          room.gameOver = true;
-
-          // 시간 종료 시 최고점 플레이어 찾기
-          const playerList = Object.values(room.players);
-          playerList.sort((a, b) => b.score - a.score);
-          const winner = playerList[0];
-
-          io.to(rId).emit('matchEnded', {
-            winnerName: winner ? winner.name : '없음',
-            winnerScore: winner ? winner.score : 0,
-            reason: '시간이 종료되었습니다!'
-          });
-        }
-      }, 1000);
-    }
-
-    // 접속한 유저에게 본인 보드 및 방 정보 전송
-    socket.emit('initMyBoard', {
-      board: room.players[socket.id].board,
-      targetScore: room.targetScore,
-      timeRemaining: room.timeRemaining,
-      colorCount: room.colorCount
-    });
-
-    // 방 안의 전체 플레이어 상황 브로드캐스트
-    broadcastRoomStatus(rId);
-  });
-
-  function broadcastRoomStatus(rId) {
-    const room = rooms[rId];
-    if (!room) return;
-
-    const playerList = Object.values(room.players).map(p => ({
-      id: p.id,
-      name: p.name,
-      score: p.score
-    }));
-
-    io.to(rId).emit('roomStatusUpdate', {
-      players: playerList,
-      targetScore: room.targetScore
-    });
   }
 
-  // 타일 클릭 이벤트
-  socket.on('clickTile', ({ r, c }) => {
-    const rId = socket.roomId;
-    if (!rId || !rooms[rId] || rooms[rId].gameOver) return;
+  io.to(roomId).emit('updateScores', {
 
-    const room = rooms[rId];
+    scores,
+
+    winScore: rooms[roomId].config.winScore
+
+  });
+
+}
+
+
+
+io.on('connection', (socket) => {
+
+  socket.on('joinRoom', ({ roomId, colorCount, timeLimit, nickname, mode }) => {
+
+    socket.join(roomId);
+
+
+
+    if (!rooms[roomId] || rooms[roomId].timeRemaining <= 0) {
+
+      if (rooms[roomId] && rooms[roomId].timer) {
+
+        clearInterval(rooms[roomId].timer);
+
+      }
+
+
+
+      const selectedMode = MODE_CONFIG[mode] ? mode : 'normal';
+
+      const config = MODE_CONFIG[selectedMode];
+
+      const selectedTime = timeLimit || 86400;
+
+
+
+      rooms[roomId] = {
+
+        mode: selectedMode,
+
+        config,
+
+        colorCount: colorCount || 16,
+
+        timeLimit: selectedTime,
+
+        timeRemaining: selectedTime,
+
+        players: {},
+
+        timer: null
+
+      };
+
+
+
+      rooms[roomId].timer = setInterval(() => {
+
+        if (!rooms[roomId]) return;
+
+
+
+        if (rooms[roomId].timeRemaining > 0) {
+
+          rooms[roomId].timeRemaining--;
+
+          io.to(roomId).emit('updateTime', { timeRemaining: rooms[roomId].timeRemaining });
+
+        } else {
+
+          clearInterval(rooms[roomId].timer);
+
+          io.to(roomId).emit('gameOver', { winnerId: null, reason: '제한 시간이 종료되었습니다!' });
+
+        }
+
+      }, 1000);
+
+    }
+
+
+
+    const room = rooms[roomId];
+
+    room.players[socket.id] = {
+
+      nickname: nickname || '익명',
+
+      score: 0,
+
+      board: generateBoard(room.config, room.colorCount)
+
+    };
+
+
+
+    socket.emit('initMyBoard', {
+
+      board: room.players[socket.id].board,
+
+      timeRemaining: room.timeRemaining,
+
+      config: room.config
+
+    });
+
+
+
+    broadcastScores(roomId);
+
+  });
+
+
+
+  socket.on('clickTile', ({ roomId, r, c }) => {
+
+    const room = rooms[roomId];
+
+    if (!room || room.timeRemaining <= 0) return;
+
+
+
     const player = room.players[socket.id];
-    if (!player) return;
 
-    const removedCount = checkAndRemoveTiles(player.board, r, c);
+    if (!player || player.board[r][c] !== -1) return;
+
+
+
+    const removedCount = checkAndRemoveTiles(player.board, r, c, room.config.rows, room.config.cols);
+
+    const hit = removedCount > 0;
+
+
+
+    if (hit) {
+
+      player.score += removedCount;
+
+    }
+
+
+
+    let shuffled = false;
+
+    const oldTileCount = countRemainingTiles(player.board, room.config.rows, room.config.cols);
+
     
-    if (removedCount > 0) {
-      player.score += removedCount * 10;
-      
-      socket.emit('updateBoard', {
-        board: player.board,
-        score: player.score
+
+    ensureValidBoard(player.board, room.config, room.colorCount);
+
+    if (countRemainingTiles(player.board, room.config.rows, room.config.cols) > oldTileCount) {
+
+      shuffled = true;
+
+    }
+
+
+
+    socket.emit('updateMyBoard', {
+
+      board: player.board,
+
+      hit,
+
+      shuffled
+
+    });
+
+
+
+    broadcastScores(roomId);
+
+
+
+    if (player.score >= room.config.winScore) {
+
+      if (room.timer) clearInterval(room.timer);
+
+      io.to(roomId).emit('gameOver', {
+
+        winnerId: socket.id,
+
+        reason: `${player.nickname}님이 ${room.config.winScore}점을 달성했습니다!`
+
       });
 
-      broadcastRoomStatus(rId);
-
-      // 목표 점수 달성 확인 (200점 / 500점 승리 메커니즘)
-      if (player.score >= room.targetScore) {
-        room.gameOver = true;
-        if (room.timerInterval) clearInterval(room.timerInterval);
-
-        io.to(rId).emit('matchEnded', {
-          winnerName: player.name,
-          winnerScore: player.score,
-          reason: `목표 점수 ${room.targetScore}점을 달성했습니다!`
-        });
-      }
     }
+
   });
 
-  socket.on('requestHint', () => {
-    const rId = socket.roomId;
-    if (!rId || !rooms[rId] || rooms[rId].gameOver) return;
 
-    const player = rooms[rId].players[socket.id];
+
+  socket.on('getHint', ({ roomId }) => {
+
+    const room = rooms[roomId];
+
+    if (!room) return;
+
+    const player = room.players[socket.id];
+
     if (!player) return;
 
-    const hintPos = getBestHint(player.board);
-    socket.emit('receiveHint', { hintPos });
+
+
+    const hintPos = findValidMove(player.board, room.config.rows, room.config.cols);
+
+    socket.emit('receiveHint', hintPos);
+
   });
+
+
 
   socket.on('disconnect', () => {
-    const rId = socket.roomId;
-    if (rId && rooms[rId]) {
-      delete rooms[rId].players[socket.id];
-      const remaining = Object.keys(rooms[rId].players).length;
 
-      if (remaining === 0) {
-        if (rooms[rId].timerInterval) clearInterval(rooms[rId].timerInterval);
-        delete rooms[rId];
-      } else {
-        broadcastRoomStatus(rId);
+    for (const roomId in rooms) {
+
+      if (rooms[roomId].players[socket.id]) {
+
+        delete rooms[roomId].players[socket.id];
+
+
+
+        if (Object.keys(rooms[roomId].players).length === 0) {
+
+          if (rooms[roomId].timer) clearInterval(rooms[roomId].timer);
+
+          delete rooms[roomId];
+
+        } else {
+
+          broadcastScores(roomId);
+
+        }
+
+        break;
+
       }
+
     }
+
   });
+
 });
 
+
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Color Tile Server running on port ${PORT}`));
+
+server.listen(PORT, () => {
+
+  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+
+});
