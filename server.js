@@ -8,10 +8,11 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 모드별 설정 값 (하드 모드: 24x45, 총 1080칸 중 타일 550개, 빈칸 530개, 500점 목표)
+// 모드별 설정 값
+// 하드 모드: 24x45 (총 1080타일 규격), 목표 500점 (타일 1개당 1점)
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
-  hard: { rows: 24, cols: 45, targetTileCount: 550, winScore: 500 }
+  hard: { rows: 24, cols: 45, targetTileCount: 1080, winScore: 500 }
 };
 
 const rooms = {};
@@ -161,6 +162,23 @@ function generateBoard(config, colorCount) {
   const board = Array.from({ length: config.rows }, () => Array(config.cols).fill(-1));
   const tiles = generateTileSet(config.targetTileCount, colorCount);
   placeTilesRandomly(board, config.rows, config.cols, tiles);
+
+  // 타일로 완전히 가득 찬 경우 첫 클릭(빈 공간)이 불가능하므로 중심부 4칸을 길터주기용 빈칸으로 확보
+  const totalCells = config.rows * config.cols;
+  const tileCount = countRemainingTiles(board, config.rows, config.cols);
+  if (totalCells - tileCount < 4) {
+    const midR = Math.floor(config.rows / 2);
+    const midC = Math.floor(config.cols / 2);
+    const offsets = [[0, 0], [0, 1], [1, 0], [1, 1]];
+    for (const [dr, dc] of offsets) {
+      const r = midR + dr;
+      const c = midC + dc;
+      if (r < config.rows && c < config.cols && board[r][c] !== -1) {
+        board[r][c] = -1;
+      }
+    }
+  }
+
   ensureValidBoard(board, config, colorCount);
   return board;
 }
@@ -276,6 +294,7 @@ io.on('connection', (socket) => {
     const hit = removedCount > 0;
 
     if (hit) {
+      // 타일 1개당 1점
       player.score += removedCount;
     }
 
