@@ -66,7 +66,7 @@
     /* --- 게임 메인 레이아웃 --- */
     .game-container {
       display: flex; gap: 20px; align-items: flex-start; justify-content: center;
-      max-width: 1600px; width: 100%;
+      max-width: 1650px; width: 100%;
     }
 
     .sidebar {
@@ -172,6 +172,15 @@
       to { opacity: 1; transform: scale(1.15); }
     }
 
+    /* 좁은 해상도(노트북 등) 전용 자동 축소 매크로 */
+    @media (max-width: 1550px) {
+      .tile {
+        width: 20px !important;
+        height: 20px !important;
+        font-size: 10px !important;
+      }
+    }
+
     .toast-msg {
       position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
       background: #d29922; color: #0d1117; font-weight: bold; padding: 10px 20px;
@@ -234,7 +243,7 @@
       <label for="mode-select">🎮 난이도 모드 선택</label>
       <select id="mode-select">
         <option value="normal" selected>일반 모드 (16×30 / 200점 목표)</option>
-        <option value="hard">하드 모드 (25×40 / 500점 목표)</option>
+        <option value="hard">하드 모드 (25×50 / 500점 목표 / 20% 빈칸)</option>
       </select>
     </div>
 
@@ -526,7 +535,7 @@
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
 
-    // 열 개수(cols)에 따른 타일 크기 및 폰트 크기 계산 (30열, 40열 모두 24px 적용)
+    // 30열 / 50열 규격에 맞춰 24px 타일 / 11px 폰트 자동 적용
     const tileSize = currentConfig.cols >= 30 ? 24 : 30;
     const fontSize = currentConfig.cols >= 30 ? 11 : 13;
 
