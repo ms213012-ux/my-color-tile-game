@@ -234,7 +234,7 @@
       <label for="mode-select">🎮 난이도 모드 선택</label>
       <select id="mode-select">
         <option value="normal" selected>일반 모드 (16×30 / 200점 목표)</option>
-        <option value="hard">하드 모드 (24×45 / 500점 목표)</option>
+        <option value="hard">하드 모드 (25×40 / 500점 목표)</option>
       </select>
     </div>
 
@@ -526,9 +526,9 @@
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
 
-    // 열 개수(cols)에 따른 타일 크기 및 폰트 크기 반응형 계산
-    const tileSize = currentConfig.cols >= 45 ? 18 : (currentConfig.cols >= 30 ? 24 : 30);
-    const fontSize = currentConfig.cols >= 45 ? 9 : (currentConfig.cols >= 30 ? 11 : 13);
+    // 열 개수(cols)에 따른 타일 크기 및 폰트 크기 계산 (30열, 40열 모두 24px 적용)
+    const tileSize = currentConfig.cols >= 30 ? 24 : 30;
+    const fontSize = currentConfig.cols >= 30 ? 11 : 13;
 
     boardEl.style.gridTemplateColumns = `repeat(${currentConfig.cols}, ${tileSize}px)`;
     boardEl.style.gridTemplateRows = `repeat(${currentConfig.rows}, ${tileSize}px)`;
