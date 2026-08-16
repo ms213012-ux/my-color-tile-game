@@ -8,10 +8,10 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 모드별 설정 값 (하드 모드: 24x45, 총 1080타일, 500점 목표)
+// 모드별 설정 값 (하드 모드: 24x45, 총 1080칸 중 타일 550개, 빈칸 530개, 500점 목표)
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
-  hard: { rows: 24, cols: 45, targetTileCount: 1080, winScore: 500 }
+  hard: { rows: 24, cols: 45, targetTileCount: 550, winScore: 500 }
 };
 
 const rooms = {};
