@@ -3,637 +3,421 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>컬러 타일 천후개조</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <title>컬러타일 천후 개조</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body {
-      background-color: #0d1117;
-      color: #e6edf3;
+      background-color: #121212;
+      color: #ffffff;
       font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 10px;
+      overflow: hidden;
     }
 
-    .hidden { display: none !important; }
+    .container {
+      width: 98vw;
+      max-width: 1400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-    /* --- 로비 화면 --- */
-    .lobby-card {
-      background-color: #161b22;
-      border: 1px solid #30363d;
+    /* 로비 뷰 */
+    #lobby-view {
+      background: #1e1e1e;
+      padding: 2.5rem;
       border-radius: 16px;
-      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
       width: 100%;
-      max-width: 420px;
-      box-shadow: 0 12px 35px rgba(0,0,0,0.6);
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    #lobby-view h1 {
       text-align: center;
+      color: #4facfe;
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
     }
-
-    .lobby-card h1 { color: #58a6ff; font-size: 26px; margin-bottom: 25px; }
-
-    .form-group { margin-bottom: 20px; text-align: left; }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
     .form-group label {
-      display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #8b949e;
+      font-size: 0.9rem;
+      color: #aaa;
     }
-    .form-group input[type="text"], .form-group select {
-      width: 100%; padding: 12px; background-color: #21262d; color: #f0f6fc;
-      border: 1px solid #30363d; border-radius: 8px; font-size: 15px; outline: none;
+    .form-group input, .form-group select {
+      padding: 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #2a2a2a;
+      color: #fff;
+      font-size: 1rem;
     }
-    .form-group input[type="text"]:focus, .form-group select:focus { border-color: #58a6ff; }
-
-    .checkbox-group {
-      display: flex; align-items: center; justify-content: space-between;
-      background-color: #21262d; padding: 12px 15px; border-radius: 8px;
-      border: 1px solid #30363d; cursor: pointer;
+    .btn {
+      padding: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      color: #fff;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
     }
-    .checkbox-group label { margin-bottom: 0; cursor: pointer; color: #c9d1d9; }
-    .checkbox-group input[type="checkbox"] {
-      width: 18px; height: 18px; accent-color: #58a6ff; cursor: pointer;
+    .btn:hover {
+      opacity: 0.9;
     }
-
-    .btn-start {
-      width: 100%; padding: 14px; font-size: 17px; font-weight: bold;
-      background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); transition: filter 0.2s;
-    }
-    .btn-start:hover { filter: brightness(1.15); }
-
-    /* --- 게임 메인 레이아웃 --- */
-    .game-container {
-      display: flex; gap: 20px; align-items: flex-start; justify-content: center;
-      max-width: 1750px; width: 100%;
+    .btn:active {
+      transform: scale(0.98);
     }
 
-    .sidebar {
-      width: 220px; background-color: #161b22; border: 1px solid #30363d;
-      border-radius: 14px; padding: 16px; flex-shrink: 0;
+    /* 게임 뷰 */
+    #game-view {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
     }
-
-    .sidebar h3 {
-      font-size: 16px; color: #58a6ff; margin-bottom: 15px;
-      padding-bottom: 10px; border-bottom: 1px solid #30363d;
-    }
-
-    .player-list-container { display: flex; flex-direction: column; gap: 10px; }
-
-    .player-card {
-      background-color: #21262d; border: 1px solid #30363d;
-      border-radius: 8px; padding: 10px 12px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .player-card.my-card { border-color: #58a6ff; background-color: #1f293e; }
-
-    .player-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
-    .rank-badge {
-      font-size: 11px; font-weight: bold; background-color: #30363d;
-      color: #8b949e; padding: 2px 6px; border-radius: 4px;
-    }
-    .nickname {
-      font-size: 14px; font-weight: 600; color: #c9d1d9;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;
-    }
-    .me-tag { font-size: 11px; color: #58a6ff; }
-    .score-text { font-size: 14px; font-weight: bold; color: #d29922; }
-
-    .main-section { display: flex; flex-direction: column; align-items: flex-end; }
 
     .top-bar {
-      display: flex; justify-content: space-between; align-items: center;
-      width: 100%; margin-bottom: 10px; gap: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e1e1e;
+      padding: 0.8rem 1.5rem;
+      border-radius: 12px;
+    }
+    .timer-box {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #00f2fe;
+    }
+    .scores-box {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 1rem;
+    }
+    .score-item {
+      display: flex;
+      gap: 0.5rem;
     }
 
-    .left-tools { display: flex; align-items: center; gap: 15px; }
-
-    .time-box { font-size: 16px; font-weight: 600; color: #58a6ff; }
-    .time-warning { color: #f85149; animation: blink 1s infinite; }
-
-    .btn-hint {
-      padding: 8px 16px; background-color: #21262d; color: #8b949e;
-      border: 1px solid #30363d; border-radius: 6px; font-size: 13px;
-      font-weight: 600; cursor: pointer; transition: all 0.2s;
-    }
-    .btn-hint.active {
-      background: #d29922; color: #0d1117; border-color: #f1e05a;
-      box-shadow: 0 0 10px rgba(210, 153, 34, 0.5);
-      animation: pulse-hint 1.2s infinite;
+    /* 그리드 및 타일 반응형 비율 적용 */
+    .board-container {
+      position: relative;
+      background: #181818;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
     }
 
-    @keyframes pulse-hint {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-    @keyframes blink { 50% { opacity: 0.5; } }
-
-    .btn-lobby {
-      padding: 8px 16px; background-color: #21262d; color: #8b949e;
-      border: 1px solid #30363d; border-radius: 6px; cursor: pointer; font-size: 13px;
-    }
-    .btn-lobby:hover { background-color: #30363d; color: #fff; }
-
-    .grid {
+    #board {
       display: grid;
       gap: 2px;
-      background-color: #161b22;
-      padding: 8px;
-      border-radius: 12px;
-      border: 1px solid #30363d;
+      background: #252525;
+      padding: 4px;
+      border-radius: 6px;
     }
 
     .tile {
-      border-radius: 4px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; user-select: none;
-      transition: transform 0.08s ease, filter 0.08s ease;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.15s, transform 0.1s, border 0.1s;
     }
-    .tile:hover { transform: scale(1.15); z-index: 2; filter: brightness(1.15); }
-
-    .empty {
-      background-color: #0d1117 !important; border-radius: 4px; cursor: pointer;
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+    .tile.empty {
+      background-color: transparent !important;
+      cursor: default;
     }
-    .empty:hover { background-color: #1c2128 !important; }
-
-    .empty.hint-highlight {
-      background-color: #d29922 !important;
-      box-shadow: 0 0 12px #d29922, inset 0 0 4px #ffffff;
-      animation: hintBlink 0.5s infinite alternate;
-      z-index: 5;
+    .tile.hint {
+      border: 3px solid #ffff00 !important;
+      animation: pulse 0.8s infinite alternate;
     }
 
-    @keyframes hintBlink {
-      from { opacity: 0.6; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1.15); }
+    @keyframes pulse {
+      from { transform: scale(0.95); }
+      to { transform: scale(1.05); }
     }
 
-    /* 좁은 해상도(노트북 등) 전용 자동 축소 매크로 */
+    /* 동적 셀 크기 조정 */
     @media (max-width: 1650px) {
-      .tile {
-        width: 20px !important;
-        height: 20px !important;
-        font-size: 10px !important;
-      }
+      .board-container { padding: 6px; }
+      #board { gap: 1px; }
     }
 
-    .toast-msg {
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      background: #d29922; color: #0d1117; font-weight: bold; padding: 10px 20px;
-      border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 200;
-      display: none; font-size: 14px;
-    }
-
+    /* 모달 */
     .modal {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(13, 17, 23, 0.85); align-items: center; justify-content: center;
-      z-index: 100; backdrop-filter: blur(4px);
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
     }
-    .modal.active { display: flex; }
-
-    .modal-card {
-      background-color: #161b22; border: 1px solid #30363d; border-radius: 14px;
-      padding: 28px; width: 90%; max-width: 400px; text-align: center;
+    .modal-content {
+      background: #222;
+      padding: 2rem;
+      border-radius: 16px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      max-width: 400px;
+      width: 90%;
     }
-
-    .modal-card h2 { font-size: 26px; margin-bottom: 8px; }
-    .modal-card p { font-size: 14px; margin-bottom: 18px; color: #8b949e; }
-
-    .modal-leaderboard {
-      background-color: #21262d; border-radius: 8px; padding: 10px;
-      margin-bottom: 20px; max-height: 200px; overflow-y: auto; text-align: left;
-    }
-
-    .modal-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 10px; border-bottom: 1px solid #30363d; font-size: 14px;
-    }
-    .modal-row:last-child { border-bottom: none; }
-    .modal-row.rank-1 { color: #d29922; font-weight: bold; }
-
-    .btn-modal {
-      width: 100%; padding: 12px; font-size: 15px; font-weight: bold;
-      background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer;
-    }
+    .hidden { display: none !important; }
   </style>
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-  <div id="toast" class="toast-msg"></div>
-
-  <!-- 로비 화면 -->
-  <div id="lobby-view" class="lobby-card">
-    <h1>🎨 컬러 타일 천후개조</h1>
-    
-    <div class="form-group">
-      <label for="nickname-input">👤 닉네임 설정</label>
-      <input type="text" id="nickname-input" value="익명1" placeholder="닉네임 입력">
-    </div>
-
-    <div class="form-group">
-      <label for="room-input">🔑 방 코드</label>
-      <input type="text" id="room-input" value="ROOM_1" placeholder="예: ROOM_123">
-    </div>
-
-    <div class="form-group">
-      <label for="mode-select">🎮 난이도 모드 선택</label>
-      <select id="mode-select">
-        <option value="normal">일반 모드 (16×30 / 200점 목표)</option>
-        <option value="hard" selected>하드 모드 (25×54 / 500점 목표 /틀리면 안됨)</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="color-select">🎨 색상 개수 선택</label>
-      <select id="color-select">
-        <option value="8">8개 (매우 쉬움)</option>
-        <option value="12">12개 (쉬움)</option>
-        <option value="16" selected>16개 (보통)</option>
-        <option value="20">20개 (어려움)</option>
-        <option value="24">24개 (매우 어려움)</option>
-        <option value="32">32개 (지옥 난이도)</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="time-select">⏱️ 제한 시간 설정</label>
-      <select id="time-select">
-        <option value="60">1분 (60초)</option>
-        <option value="120">2분 (120초)</option>
-        <option value="180">3분 (180초)</option>
-        <option value="300">5분 (300초)</option>
-        <option value="86400" selected>24시간 (무제한)</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <div class="checkbox-group" onclick="document.getElementById('icon-toggle').click();">
-        <label for="icon-toggle">🔢 타일 위 숫자 라벨 표시</label>
-        <input type="checkbox" id="icon-toggle" checked onclick="event.stopPropagation()">
+  <div class="container">
+    <!-- 로비 뷰 -->
+    <div id="lobby-view">
+      <h1>컬러타일 천후 개조</h1>
+      <div class="form-group">
+        <label for="nickname">닉네임</label>
+        <input type="text" id="nickname" value="플레이어1" placeholder="닉네임 입력">
       </div>
+      <div class="form-group">
+        <label for="room-id">방 번호 / 이름</label>
+        <input type="text" id="room-id" value="room1" placeholder="방 이름 입력">
+      </div>
+      <div class="form-group">
+        <label for="mode">난이도 모드</label>
+        <select id="mode">
+          <option value="hard" selected>하드 모드 (25x40 / 500점)</option>
+          <option value="normal">노멀 모드 (12x22 / 200점)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="time-limit">제한 시간</label>
+        <select id="time-limit">
+          <option value="60">1분</option>
+          <option value="120">2분</option>
+          <option value="180" selected>3분</option>
+          <option value="300">5분</option>
+          <option value="86400">무제한</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="color-count">타일 색상 종류 수</label>
+        <select id="color-count">
+          <option value="12">12개</option>
+          <option value="16" selected>16개</option>
+          <option value="20">20개</option>
+          <option value="24">24개</option>
+          <option value="32">32개</option>
+        </select>
+      </div>
+      <button class="btn" id="btn-join">게임 입장하기</button>
     </div>
 
-    <button class="btn-start" onclick="startGame()">게임 시작하기</button>
-  </div>
-
-  <!-- 게임 메인 화면 -->
-  <div id="game-view" class="game-container hidden">
-    <div class="sidebar">
-      <h3>👥 플레이어 현황</h3>
-      <div id="player-list" class="player-list-container"></div>
-    </div>
-
-    <div class="main-section">
+    <!-- 게임 뷰 -->
+    <div id="game-view" class="hidden">
       <div class="top-bar">
-        <div class="left-tools">
-          <div class="time-box">⏱️ 남은 시간: <span id="timer">--:--</span></div>
-          <button id="btn-hint" class="btn-hint" onclick="useHint()">💡 힌트 (60초)</button>
-        </div>
-        <button class="btn-lobby" onclick="resetToLobby()">로비로 나가기</button>
+        <div class="timer-box" id="timer-display">시간: --:--</div>
+        <div class="scores-box" id="scores-display"></div>
+        <button class="btn" id="btn-hint" style="padding: 0.5rem 1rem; font-size: 0.9rem;">힌트 받기</button>
       </div>
 
-      <div id="board" class="grid"></div>
+      <div class="board-container">
+        <div id="board"></div>
+      </div>
     </div>
   </div>
 
-  <!-- 결과 모달 팝업 -->
-  <div id="modal" class="modal">
-    <div class="modal-card">
-      <h2 id="modal-title">🏆 승리!</h2>
-      <p id="modal-desc">모든 타일을 지워 500점을 달성하셨습니다!</p>
-      <div id="modal-leaderboard" class="modal-leaderboard"></div>
-      <button class="btn-modal" onclick="resetToLobby()">로비로 이동</button>
+  <!-- 결과 모달 -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="modal-title">게임 종료</h2>
+      <p id="modal-message"></p>
+      <button class="btn" onclick="location.reload()">로비로 돌아가기</button>
     </div>
   </div>
 
-<script>
-  const socket = io();
+  <script>
+    const socket = io();
 
-  const SYMBOLS = Array.from({length: 32}, (_, i) => (i + 1).toString());
+    let board = [];
+    let currentConfig = { rows: 25, cols: 40, targetTileCount: 500, winScore: 500 };
+    let activeColors = [];
+    let currentRoomId = '';
+    let hintTimeout = null;
 
-  let board = [];
-  let timeRemaining = 0;
-  let currentRoomId = "ROOM_1";
-  let showIcons = true;
-  let activeColors = [];
-  let lastScores = {};
-  
-  let currentConfig = { rows: 25, cols: 54, winScore: 500 };
-
-  let hintSeconds = 60;
-  let hintTimer = null;
-
-  function generateEyeFriendlyColors(count) {
-    const colors = [];
-    for (let i = 0; i < count; i++) {
-      const hue = Math.floor((360 / count) * i);
-      const sat = 50 + (i % 3) * 5;
-      const light = 42 + (i % 2) * 12;
-
-      const textColor = light > 52 ? '#0f172a' : '#ffffff';
-
-      colors.push({
-        background: `hsl(${hue}, ${sat}%, ${light}%)`,
-        textColor: textColor
-      });
-    }
-    return colors;
-  }
-
-  let audioCtx = null;
-  function initAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  }
-
-  function playCorrectSound() {
-    initAudio();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.15);
-  }
-
-  function playWrongSound() {
-    initAudio();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(130, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.25);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.25);
-  }
-
-  function resetHintTimer() {
-    clearInterval(hintTimer);
-    hintSeconds = 60;
-    const btnHint = document.getElementById('btn-hint');
-    btnHint.classList.remove('active');
-    btnHint.innerText = `💡 힌트 (${hintSeconds}초)`;
-
-    clearHintHighlights();
-
-    hintTimer = setInterval(() => {
-      hintSeconds--;
-      if (hintSeconds <= 0) {
-        clearInterval(hintTimer);
-        btnHint.classList.add('active');
-        btnHint.innerText = "💡 힌트 보기!";
-      } else {
-        btnHint.innerText = `💡 힌트 (${hintSeconds}초)`;
+    // 눈이 편한 색상 생성기
+    function generateEyeFriendlyColors(count) {
+      const colors = [];
+      for (let i = 0; i < count; i++) {
+        const hue = (i * 360 / count) % 360;
+        colors.push(`hsl(${hue}, 70%, 55%)`);
       }
-    }, 1000);
-  }
-
-  function useHint() {
-    const btnHint = document.getElementById('btn-hint');
-    if (!btnHint.classList.contains('active')) {
-      showToast(`⏳ 힌트는 미득점 상태로 ${hintSeconds}초 후에 활성화됩니다!`);
-      return;
-    }
-    socket.emit('getHint', { roomId: currentRoomId });
-  }
-
-  function clearHintHighlights() {
-    document.querySelectorAll('.hint-highlight').forEach(el => {
-      el.classList.remove('hint-highlight');
-    });
-  }
-
-  function showToast(msg) {
-    const toast = document.getElementById('toast');
-    toast.innerText = msg;
-    toast.style.display = 'block';
-    setTimeout(() => { toast.style.display = 'none'; }, 2500);
-  }
-
-  function startGame() {
-    initAudio();
-    const nickname = document.getElementById('nickname-input').value.trim() || "익명";
-    currentRoomId = document.getElementById('room-input').value.trim() || "ROOM_1";
-    const selectedMode = document.getElementById('mode-select').value;
-    const selectedColorCount = parseInt(document.getElementById('color-select').value, 10);
-    const timeLimit = parseInt(document.getElementById('time-select').value, 10);
-    showIcons = document.getElementById('icon-toggle').checked;
-
-    activeColors = generateEyeFriendlyColors(selectedColorCount);
-
-    socket.emit('joinRoom', {
-      roomId: currentRoomId,
-      colorCount: selectedColorCount,
-      timeLimit,
-      nickname,
-      mode: selectedMode
-    });
-  }
-
-  function resetToLobby() {
-    location.reload();
-  }
-
-  socket.on('initMyBoard', ({ board: myBoard, timeRemaining: serverTime, config }) => {
-    board = myBoard;
-    timeRemaining = serverTime;
-    currentConfig = config;
-
-    document.getElementById('lobby-view').classList.add('hidden');
-    document.getElementById('game-view').classList.remove('hidden');
-    document.getElementById('modal').classList.remove('active');
-
-    buildBoardElements();
-    renderBoard();
-    updateTimerDisplay();
-    resetHintTimer();
-  });
-
-  socket.on('updateMyBoard', ({ board: myBoard, hit, shuffled }) => {
-    board = myBoard;
-    renderBoard();
-
-    if (hit) {
-      playCorrectSound();
-      resetHintTimer();
-    } else {
-      playWrongSound();
+      return colors;
     }
 
-    if (shuffled) {
-      showToast('🔀 매칭 가능한 수가 없어 타일 위치를 새로 섞었습니다!');
+    // Web Audio API 오디오 효과음
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq, type = 'sine', duration = 0.1) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
     }
-  });
 
-  socket.on('receiveHint', (hintPos) => {
-    clearHintHighlights();
-    if (hintPos) {
-      const tile = document.getElementById(`tile-${hintPos.r}-${hintPos.c}`);
-      if (tile) {
-        tile.classList.add('hint-highlight');
-        showToast('💡 강조된 빈칸을 클릭하세요!');
-      }
-    } else {
-      showToast('💡 맞출 자리가 없어 맵이 곧 섞입니다.');
-    }
-  });
+    function playCorrectSound() { playBeep(587.33, 'triangle', 0.15); }
+    function playShuffleSound() { playBeep(220, 'sawtooth', 0.2); }
 
-  socket.on('updateScores', ({ scores, winScore }) => {
-    lastScores = scores;
-    const playerListEl = document.getElementById('player-list');
-    playerListEl.innerHTML = '';
+    // HTML DOM 그리드 빌드 (상대 비율 적용)
+    function buildBoardElements() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
 
-    const sortedPlayers = Object.keys(scores).map(id => ({
-      id,
-      nickname: scores[id].nickname,
-      score: scores[id].score
-    })).sort((a, b) => b.score - a.score);
+      // CSS 반응형 1fr 할당
+      boardEl.style.gridTemplateColumns = `repeat(${currentConfig.cols}, 1fr)`;
+      boardEl.style.gridTemplateRows = `repeat(${currentConfig.rows}, 1fr)`;
 
-    sortedPlayers.forEach((player, index) => {
-      const isMe = player.id === socket.id;
-      const card = document.createElement('div');
-      card.className = `player-card ${isMe ? 'my-card' : ''}`;
-      
-      card.innerHTML = `
-        <div class="player-info">
-          <span class="rank-badge">${index + 1}위</span>
-          <span class="nickname" title="${player.nickname}">${player.nickname}</span>
-          ${isMe ? '<span class="me-tag">(나)</span>' : ''}
-        </div>
-        <div class="score-text">${player.score} / ${winScore}</div>
-      `;
+      const containerWidth = Math.min(window.innerWidth * 0.95, 1300);
+      const tileSize = Math.max(12, Math.floor(containerWidth / currentConfig.cols));
+      boardEl.style.width = `${tileSize * currentConfig.cols}px`;
 
-      playerListEl.appendChild(card);
-    });
-  });
-
-  socket.on('updateTime', ({ timeRemaining: serverTime }) => {
-    timeRemaining = serverTime;
-    updateTimerDisplay();
-  });
-
-  socket.on('gameOver', ({ winnerId, reason }) => {
-    const isWinner = winnerId === socket.id;
-    let msg = isWinner ? `🏆 목표 점수(500점)를 완료했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 완파했습니다.` : `⏰ ${reason}`);
-    endGame(isWinner, msg);
-  });
-
-  function buildBoardElements() {
-    const boardEl = document.getElementById('board');
-    boardEl.innerHTML = '';
-
-    const tileSize = currentConfig.cols >= 30 ? 24 : 30;
-    const fontSize = currentConfig.cols >= 30 ? 11 : 13;
-
-    boardEl.style.gridTemplateColumns = `repeat(${currentConfig.cols}, ${tileSize}px)`;
-    boardEl.style.gridTemplateRows = `repeat(${currentConfig.rows}, ${tileSize}px)`;
-
-    for (let r = 0; r < currentConfig.rows; r++) {
-      for (let c = 0; c < currentConfig.cols; c++) {
-        const tile = document.createElement('div');
-        tile.id = `tile-${r}-${c}`;
-        tile.style.width = `${tileSize}px`;
-        tile.style.height = `${tileSize}px`;
-        tile.style.fontSize = `${fontSize}px`;
-        tile.addEventListener('click', () => handleTileClick(r, c));
-        boardEl.appendChild(tile);
-      }
-    }
-  }
-
-  function renderBoard() {
-    clearHintHighlights();
-    for (let r = 0; r < currentConfig.rows; r++) {
-      for (let c = 0; c < currentConfig.cols; c++) {
-        const tile = document.getElementById(`tile-${r}-${c}`);
-        if (!tile) continue;
-        const colorIdx = board[r][c];
-
-        if (colorIdx === -1) {
-          tile.className = 'tile empty';
-          tile.style.background = '';
-          tile.innerText = '';
-        } else {
+      for (let r = 0; r < currentConfig.rows; r++) {
+        for (let c = 0; c < currentConfig.cols; c++) {
+          const tile = document.createElement('div');
+          tile.id = `tile-${r}-${c}`;
           tile.className = 'tile';
-          const colorObj = activeColors[colorIdx] || { background: '#333', textColor: '#fff' };
-          tile.style.background = colorObj.background;
-          tile.style.color = colorObj.textColor;
-          tile.innerText = showIcons ? SYMBOLS[colorIdx % SYMBOLS.length] : '';
+          tile.style.height = `${tileSize}px`;
+          tile.addEventListener('click', () => handleTileClick(r, c));
+          boardEl.appendChild(tile);
         }
       }
     }
-  }
 
-  function handleTileClick(r, c) {
-    if (board[r][c] !== -1 || timeRemaining <= 0) return;
-    socket.emit('clickTile', { roomId: currentRoomId, r, c });
-  }
+    function renderBoard() {
+      for (let r = 0; r < currentConfig.rows; r++) {
+        for (let c = 0; c < currentConfig.cols; c++) {
+          const tileEl = document.getElementById(`tile-${r}-${c}`);
+          if (!tileEl) continue;
 
-  function updateTimerDisplay() {
-    const hours = Math.floor(timeRemaining / 3600);
-    const minutes = Math.floor((timeRemaining % 3600) / 60);
-    const seconds = timeRemaining % 60;
+          const colorIdx = board[r][c];
+          tileEl.classList.remove('hint');
 
-    let timeStr = "";
-    if (hours > 0) {
-      timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    } else {
-      timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+          if (colorIdx === -1) {
+            tileEl.className = 'tile empty';
+            tileEl.style.backgroundColor = 'transparent';
+          } else {
+            tileEl.className = 'tile';
+            tileEl.style.backgroundColor = activeColors[colorIdx] || '#888';
+          }
+        }
+      }
     }
-    
-    const timerEl = document.getElementById('timer');
-    timerEl.innerText = timeStr;
 
-    if (timeRemaining <= 10) {
-      timerEl.classList.add('time-warning');
-    } else {
-      timerEl.classList.remove('time-warning');
+    function handleTileClick(r, c) {
+      if (board[r][c] !== -1) return; // 빈칸만 클릭 가능
+      socket.emit('clickTile', { roomId: currentRoomId, r, c });
     }
-  }
 
-  function endGame(isVictory, message) {
-    clearInterval(hintTimer);
-    const modal = document.getElementById('modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalDesc = document.getElementById('modal-desc');
-    const modalLeaderboard = document.getElementById('modal-leaderboard');
+    document.getElementById('btn-join').addEventListener('click', () => {
+      const nickname = document.getElementById('nickname').value;
+      const roomId = document.getElementById('room-id').value;
+      const mode = document.getElementById('mode').value;
+      const colorCount = parseInt(document.getElementById('color-count').value, 10);
+      const timeLimit = parseInt(document.getElementById('time-limit').value, 10);
 
-    modalTitle.innerText = isVictory ? "🏆 올클리어 승리!" : "💀 게임 종료";
-    modalTitle.style.color = isVictory ? "#58a6ff" : "#f85149";
-    modalDesc.innerText = message;
-
-    modalLeaderboard.innerHTML = '';
-    const sorted = Object.keys(lastScores).map(id => ({
-      id,
-      nickname: lastScores[id].nickname,
-      score: lastScores[id].score
-    })).sort((a, b) => b.score - a.score);
-
-    sorted.forEach((p, idx) => {
-      const row = document.createElement('div');
-      row.className = `modal-row ${idx === 0 ? 'rank-1' : ''}`;
-      row.innerHTML = `
-        <span>${idx + 1}위: ${p.nickname} ${p.id === socket.id ? '(나)' : ''}</span>
-        <span><strong>${p.score}점</strong></span>
-      `;
-      modalLeaderboard.appendChild(row);
+      currentRoomId = roomId;
+      socket.emit('joinRoom', { roomId, colorCount, timeLimit, nickname, mode });
     });
 
-    modal.classList.add('active');
-  }
-</script>
+    document.getElementById('btn-hint').addEventListener('click', () => {
+      socket.emit('getHint', { roomId: currentRoomId });
+    });
+
+    // 소켓 이벤트 수신
+    socket.on('initMyBoard', ({ board: myBoard, timeRemaining, config }) => {
+      board = myBoard;
+      currentConfig = config;
+      
+      const count = config?.colorCount || parseInt(document.getElementById('color-count').value, 10) || 16;
+      activeColors = config?.colors || generateEyeFriendlyColors(count);
+
+      document.getElementById('lobby-view').classList.add('hidden');
+      document.getElementById('game-view').classList.remove('hidden');
+
+      buildBoardElements();
+      renderBoard();
+    });
+
+    socket.on('updateMyBoard', ({ board: newBoard, hit, shuffled }) => {
+      board = newBoard;
+      renderBoard();
+
+      if (hit) playCorrectSound();
+      if (shuffled) playShuffleSound();
+    });
+
+    socket.on('updateScores', ({ scores, winScore }) => {
+      const scoresEl = document.getElementById('scores-display');
+      scoresEl.innerHTML = '';
+
+      for (const id in scores) {
+        const item = document.createElement('div');
+        item.className = 'score-item';
+        item.innerHTML = `<span>${scores[id].nickname}:</span> <strong>${scores[id].score} / ${winScore}</strong>`;
+        scoresEl.appendChild(item);
+      }
+    });
+
+    socket.on('updateTime', ({ timeRemaining }) => {
+      if (timeRemaining >= 86000) {
+        document.getElementById('timer-display').innerText = '시간: 무제한';
+        return;
+      }
+      const mins = Math.floor(timeRemaining / 60);
+      const secs = timeRemaining % 60;
+      document.getElementById('timer-display').innerText = 
+        `시간: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    });
+
+    socket.on('receiveHint', (pos) => {
+      if (!pos) return;
+      const tileEl = document.getElementById(`tile-${pos.r}-${pos.c}`);
+      if (tileEl) {
+        tileEl.classList.add('hint');
+        if (hintTimeout) clearTimeout(hintTimeout);
+        hintTimeout = setTimeout(() => {
+          tileEl.classList.remove('hint');
+        }, 2000);
+      }
+    });
+
+    socket.on('gameOver', ({ winnerId, reason }) => {
+      document.getElementById('modal-title').innerText = '게임 종료';
+      document.getElementById('modal-message').innerText = reason;
+      document.getElementById('modal').classList.remove('hidden');
+    });
+  </script>
 </body>
 </html>
