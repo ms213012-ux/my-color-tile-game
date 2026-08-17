@@ -12,7 +12,7 @@ app.use(express.static('public'));
 // 하드 모드: 24x45 (총 1080칸 중 빈칸 약 25%인 270칸, 타일 810개, 목표 500점)
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
-  hard: { rows: 25, cols: 45, targetTileCount: 500, winScore: 500 }
+  hard: { rows: 25, cols: 45, targetTileCount: 502, winScore: 500 }
 };
 
 const rooms = {};
