@@ -4,32 +4,31 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 모드별 설정 (타일 수 = 완파 목표 점수)
+// 모드별 설정 값
+// 하드 모드: 24x45 (총 1080칸 중 빈칸 약 25%인 270칸, 타일 810개, 목표 500점)
 const MODE_CONFIG = {
-  normal: { rows: 12, cols: 22, targetTileCount: 200, winScore: 200 }, // 200개 타일 지우면 200점
-  hard: { rows: 25, cols: 40, targetTileCount: 500, winScore: 500 }   // 500개 타일 지우면 500점 (완파)
+  normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
+  hard: { rows: 25, cols: 40, targetTileCount: 750, winScore: 500 }
 };
 
 const rooms = {};
 
-// 짝이 맞는 타일 세트 생성 (반드시 2개씩 쌍으로 생성)
+// 짝이 맞는 타일 세트 생성 (홀수 타일 방지)
 function generateTileSet(targetTileCount, colorCount) {
   const tiles = [];
   const pairs = Math.floor(targetTileCount / 2);
   for (let i = 0; i < pairs; i++) {
-    const color = i % colorCount;
-    tiles.push(color, color);
+    const color = Math.floor(Math.random() * colorCount);
+    tiles.push(color, color); // 반드시 2개씩 쌍으로 추가
   }
   return tiles;
 }
 
-// 보드 초기화
+// 보드 초기화 (모두 빈칸으로)
 function clearBoard(board, rows, cols) {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -38,7 +37,7 @@ function clearBoard(board, rows, cols) {
   }
 }
 
-// 타일 무작위 배치
+// 초고속 무작위 타일 배치 (CPU 블로킹 방지)
 function placeTilesRandomly(board, rows, cols, tiles) {
   clearBoard(board, rows, cols);
 
@@ -49,7 +48,7 @@ function placeTilesRandomly(board, rows, cols, tiles) {
     }
   }
 
-  // Fisher-Yates 셔플
+  // 좌표 셔플 (Fisher-Yates)
   for (let i = emptyPositions.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [emptyPositions[i], emptyPositions[j]] = [emptyPositions[j], emptyPositions[i]];
@@ -59,42 +58,6 @@ function placeTilesRandomly(board, rows, cols, tiles) {
   for (let i = 0; i < count; i++) {
     const { r, c } = emptyPositions[i];
     board[r][c] = tiles[i];
-  }
-}
-
-// 셔플 실패 시 남은 타일만 가지고 최소 1개 이상의 길을 강제 배치 (새 타일 생성 X)
-function forceValidPlacement(board, rows, cols, tiles) {
-  clearBoard(board, rows, cols);
-  if (tiles.length < 2) return;
-
-  const midR = Math.floor(rows / 2);
-  const midC = Math.floor(cols / 2);
-
-  // 동일 색상 2개 타일을 중앙 빈칸 기준 위/아래 직선상에 배치하여 수 만듦
-  const targetColor = tiles[0];
-  board[midR - 1][midC] = targetColor;
-  board[midR + 1][midC] = targetColor;
-
-  const remainingTiles = tiles.slice(2);
-  const emptyPositions = [];
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if ((r === midR && c === midC) || (r === midR - 1 && c === midC) || (r === midR + 1 && c === midC)) {
-        continue;
-      }
-      emptyPositions.push({ r, c });
-    }
-  }
-
-  for (let i = emptyPositions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [emptyPositions[i], emptyPositions[j]] = [emptyPositions[j], emptyPositions[i]];
-  }
-
-  for (let i = 0; i < Math.min(remainingTiles.length, emptyPositions.length); i++) {
-    const { r, c } = emptyPositions[i];
-    board[r][c] = remainingTiles[i];
   }
 }
 
@@ -140,17 +103,20 @@ function countRemainingTiles(board, rows, cols) {
   return count;
 }
 
-function ensureValidBoard(board, config, colorCount, currentScore) {
-  const { rows, cols, winScore } = config;
+function ensureValidBoard(board, config, colorCount) {
+  const { rows, cols, targetTileCount } = config;
   let remaining = countRemainingTiles(board, rows, cols);
   let isShuffled = false;
 
-  // 완파 또는 목표 점수 도달 시 새로운 판을 새로 채우지 않음
-  if (remaining === 0 || (currentScore && currentScore >= winScore)) {
-    return false;
+  // 1. 타일이 하나도 없을 때 (올 클리어) -> 새로운 판 생성
+  if (remaining === 0) {
+    const tiles = generateTileSet(targetTileCount, colorCount);
+    placeTilesRandomly(board, rows, cols, tiles);
+    remaining = targetTileCount;
+    isShuffled = true;
   }
 
-  // 수가 막혔을 때 기존 남은 타일들만 섞기
+  // 2. 매칭 가능한 수가 없을 때 -> 안전 셔플 수행
   if (remaining > 0 && !findValidMove(board, rows, cols)) {
     isShuffled = true;
 
@@ -165,7 +131,7 @@ function ensureValidBoard(board, config, colorCount, currentScore) {
 
     let attempts = 0;
     let foundValid = false;
-    const MAX_ATTEMPTS = 100;
+    const MAX_ATTEMPTS = 50;
 
     while (attempts < MAX_ATTEMPTS) {
       for (let i = existingTiles.length - 1; i > 0; i--) {
@@ -182,8 +148,10 @@ function ensureValidBoard(board, config, colorCount, currentScore) {
       attempts++;
     }
 
+    // 50회 셔플 후에도 수가 안 나오면 강제로 새로운 타일 세트 공급 (서버 멈춤 방지)
     if (!foundValid) {
-      forceValidPlacement(board, rows, cols, existingTiles);
+      const freshTiles = generateTileSet(targetTileCount, colorCount);
+      placeTilesRandomly(board, rows, cols, freshTiles);
     }
   }
 
@@ -194,11 +162,10 @@ function generateBoard(config, colorCount) {
   const board = Array.from({ length: config.rows }, () => Array(config.cols).fill(-1));
   const tiles = generateTileSet(config.targetTileCount, colorCount);
   placeTilesRandomly(board, config.rows, config.cols, tiles);
-  ensureValidBoard(board, config, colorCount, 0);
+  ensureValidBoard(board, config, colorCount);
   return board;
 }
 
-// 짝수 개(2개 또는 4개)만 제거하여 홀수 잔여 타일 발생 원천 차단
 function checkAndRemoveTiles(board, r, c, rows, cols) {
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   const foundTiles = [];
@@ -216,24 +183,18 @@ function checkAndRemoveTiles(board, r, c, rows, cols) {
     }
   }
 
-  const colorGroups = {};
+  const colorCounts = {};
   foundTiles.forEach(tile => {
-    if (!colorGroups[tile.color]) colorGroups[tile.color] = [];
-    colorGroups[tile.color].push(tile);
+    colorCounts[tile.color] = (colorCounts[tile.color] || 0) + 1;
   });
 
   let removedCount = 0;
-  for (const color in colorGroups) {
-    const tilesOfColor = colorGroups[color];
-    if (tilesOfColor.length >= 2) {
-      const removeLimit = tilesOfColor.length >= 4 ? 4 : 2; // 3개일 때도 2개만 지워 홀수 방지
-      for (let i = 0; i < removeLimit; i++) {
-        const tile = tilesOfColor[i];
-        board[tile.r][tile.c] = -1;
-        removedCount++;
-      }
+  foundTiles.forEach(tile => {
+    if (colorCounts[tile.color] >= 2) {
+      board[tile.r][tile.c] = -1;
+      removedCount++;
     }
-  }
+  });
 
   return removedCount;
 }
@@ -319,10 +280,7 @@ io.on('connection', (socket) => {
       player.score += removedCount;
     }
 
-    let shuffled = false;
-    if (player.score < room.config.winScore) {
-      shuffled = ensureValidBoard(player.board, room.config, room.colorCount, player.score);
-    }
+    const shuffled = ensureValidBoard(player.board, room.config, room.colorCount);
 
     socket.emit('updateMyBoard', {
       board: player.board,
@@ -336,7 +294,7 @@ io.on('connection', (socket) => {
       if (room.timer) clearInterval(room.timer);
       io.to(roomId).emit('gameOver', {
         winnerId: socket.id,
-        reason: `${player.nickname}님이 ${room.config.winScore}점을 달성하여 모든 타일을 완파했습니다!`
+        reason: `${player.nickname}님이 ${room.config.winScore}점을 달성했습니다!`
       });
     }
   });
