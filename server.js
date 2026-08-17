@@ -11,7 +11,7 @@ app.use(express.static('public'));
 // 모드별 설정 값
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
-  hard: { rows: 25, cols: 45, targetTileCount: 502, winScore: 500 }
+  hard: { rows: 25, cols: 45, targetTileCount: 506, winScore: 500 }
 };
 
 const rooms = {};
