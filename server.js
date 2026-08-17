@@ -8,6 +8,9 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+// 개발자 치트키 닉네임 설정 (원하는 닉네임으로 변경 가능)
+const DEV_NICKNAME = '개발자천후';
+
 // 모드별 설정 값
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
@@ -47,7 +50,6 @@ function placeTilesRandomly(board, rows, cols, tiles) {
     }
   }
 
-  // 좌표 셔플 (Fisher-Yates)
   for (let i = emptyPositions.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [emptyPositions[i], emptyPositions[j]] = [emptyPositions[j], emptyPositions[i]];
@@ -102,13 +104,11 @@ function countRemainingTiles(board, rows, cols) {
   return count;
 }
 
-// 검증 및 셔플 (새로운 타일 공급 로직 전면 제거)
 function ensureValidBoard(board, config) {
   const { rows, cols } = config;
   let remaining = countRemainingTiles(board, rows, cols);
   let isShuffled = false;
 
-  // 매칭 가능한 수가 없을 때 남아있는 타일들만 재배치
   if (remaining > 0 && !findValidMove(board, rows, cols)) {
     isShuffled = true;
 
@@ -140,7 +140,6 @@ function ensureValidBoard(board, config) {
       attempts++;
     }
 
-    // 50회 시도 후에도 수순이 만들어지지 않더라도 새 타일을 채우지 않고 마지막 무작위 배치 상태 유지
     if (!foundValid) {
       placeTilesRandomly(board, rows, cols, existingTiles);
     }
@@ -242,8 +241,10 @@ io.on('connection', (socket) => {
     }
 
     const room = rooms[roomId];
+    const userNickname = nickname || '익명';
+
     room.players[socket.id] = {
-      nickname: nickname || '익명',
+      nickname: userNickname,
       score: 0,
       board: generateBoard(room.config, room.colorCount)
     };
@@ -255,6 +256,15 @@ io.on('connection', (socket) => {
     });
 
     broadcastScores(roomId);
+
+    // 개발자 닉네임 감지 시 입장 즉시 승리 종료
+    if (userNickname === DEV_NICKNAME) {
+      if (room.timer) clearInterval(room.timer);
+      io.to(roomId).emit('gameOver', {
+        winnerId: socket.id,
+        reason: `[개발자 명령] ${userNickname}님이 접속하여 게임을 바로 승리 처리했습니다!`
+      });
+    }
   });
 
   socket.on('clickTile', ({ roomId, r, c }) => {
