@@ -9,7 +9,6 @@ const io = new Server(server);
 app.use(express.static('public'));
 
 // 모드별 설정 값
-// 하드 모드: 24x45 (총 1080칸 중 빈칸 약 25%인 270칸, 타일 810개, 목표 500점)
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
   hard: { rows: 25, cols: 45, targetTileCount: 502, winScore: 500 }
@@ -17,13 +16,13 @@ const MODE_CONFIG = {
 
 const rooms = {};
 
-// 짝이 맞는 타일 세트 생성 (홀수 타일 방지)
+// 짝이 맞는 타일 세트 생성 (초기 판 생성용)
 function generateTileSet(targetTileCount, colorCount) {
   const tiles = [];
   const pairs = Math.floor(targetTileCount / 2);
   for (let i = 0; i < pairs; i++) {
     const color = Math.floor(Math.random() * colorCount);
-    tiles.push(color, color); // 반드시 2개씩 쌍으로 추가
+    tiles.push(color, color);
   }
   return tiles;
 }
@@ -37,7 +36,7 @@ function clearBoard(board, rows, cols) {
   }
 }
 
-// 초고속 무작위 타일 배치 (CPU 블로킹 방지)
+// 무작위 타일 배치
 function placeTilesRandomly(board, rows, cols, tiles) {
   clearBoard(board, rows, cols);
 
@@ -103,20 +102,13 @@ function countRemainingTiles(board, rows, cols) {
   return count;
 }
 
-function ensureValidBoard(board, config, colorCount) {
-  const { rows, cols, targetTileCount } = config;
+// 검증 및 셔플 (새로운 타일 공급 로직 전면 제거)
+function ensureValidBoard(board, config) {
+  const { rows, cols } = config;
   let remaining = countRemainingTiles(board, rows, cols);
   let isShuffled = false;
 
-  // 1. 타일이 하나도 없을 때 (올 클리어) -> 새로운 판 생성
-  if (remaining === 0) {
-    const tiles = generateTileSet(targetTileCount, colorCount);
-    placeTilesRandomly(board, rows, cols, tiles);
-    remaining = targetTileCount;
-    isShuffled = true;
-  }
-
-  // 2. 매칭 가능한 수가 없을 때 -> 안전 셔플 수행
+  // 매칭 가능한 수가 없을 때 남아있는 타일들만 재배치
   if (remaining > 0 && !findValidMove(board, rows, cols)) {
     isShuffled = true;
 
@@ -148,10 +140,9 @@ function ensureValidBoard(board, config, colorCount) {
       attempts++;
     }
 
-    // 50회 셔플 후에도 수가 안 나오면 강제로 새로운 타일 세트 공급 (서버 멈춤 방지)
+    // 50회 시도 후에도 수순이 만들어지지 않더라도 새 타일을 채우지 않고 마지막 무작위 배치 상태 유지
     if (!foundValid) {
-      const freshTiles = generateTileSet(targetTileCount, colorCount);
-      placeTilesRandomly(board, rows, cols, freshTiles);
+      placeTilesRandomly(board, rows, cols, existingTiles);
     }
   }
 
@@ -162,7 +153,7 @@ function generateBoard(config, colorCount) {
   const board = Array.from({ length: config.rows }, () => Array(config.cols).fill(-1));
   const tiles = generateTileSet(config.targetTileCount, colorCount);
   placeTilesRandomly(board, config.rows, config.cols, tiles);
-  ensureValidBoard(board, config, colorCount);
+  ensureValidBoard(board, config);
   return board;
 }
 
@@ -280,7 +271,7 @@ io.on('connection', (socket) => {
       player.score += removedCount;
     }
 
-    const shuffled = ensureValidBoard(player.board, room.config, room.colorCount);
+    const shuffled = ensureValidBoard(player.board, room.config);
 
     socket.emit('updateMyBoard', {
       board: player.board,
