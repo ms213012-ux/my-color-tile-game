@@ -66,7 +66,7 @@
     /* --- 게임 메인 레이아웃 --- */
     .game-container {
       display: flex; gap: 20px; align-items: flex-start; justify-content: center;
-      max-width: 1650px; width: 100%;
+      max-width: 1750px; width: 100%;
     }
 
     .sidebar {
@@ -173,7 +173,7 @@
     }
 
     /* 좁은 해상도(노트북 등) 전용 자동 축소 매크로 */
-    @media (max-width: 1550px) {
+    @media (max-width: 1650px) {
       .tile {
         width: 20px !important;
         height: 20px !important;
@@ -231,7 +231,7 @@
     
     <div class="form-group">
       <label for="nickname-input">👤 닉네임 설정</label>
-      <input type="text" id="nickname-input" value="플레이어1" placeholder="닉네임 입력">
+      <input type="text" id="nickname-input" value="익명1" placeholder="닉네임 입력">
     </div>
 
     <div class="form-group">
@@ -242,8 +242,8 @@
     <div class="form-group">
       <label for="mode-select">🎮 난이도 모드 선택</label>
       <select id="mode-select">
-        <option value="normal" selected>일반 모드 (16×30 / 200점 목표)</option>
-        <option value="hard">하드 모드 (25×50 / 500점 목표 /)</option>
+        <option value="normal">일반 모드 (16×30 / 200점 목표)</option>
+        <option value="hard" selected>하드 모드 (25×54 / 500점 목표 /틀리면 안됨)</option>
       </select>
     </div>
 
@@ -304,7 +304,7 @@
   <div id="modal" class="modal">
     <div class="modal-card">
       <h2 id="modal-title">🏆 승리!</h2>
-      <p id="modal-desc">목표 점수를 달성하셨습니다!</p>
+      <p id="modal-desc">모든 타일을 지워 500점을 달성하셨습니다!</p>
       <div id="modal-leaderboard" class="modal-leaderboard"></div>
       <button class="btn-modal" onclick="resetToLobby()">로비로 이동</button>
     </div>
@@ -322,7 +322,7 @@
   let activeColors = [];
   let lastScores = {};
   
-  let currentConfig = { rows: 16, cols: 30, winScore: 200 };
+  let currentConfig = { rows: 25, cols: 54, winScore: 500 };
 
   let hintSeconds = 60;
   let hintTimer = null;
@@ -527,7 +527,7 @@
 
   socket.on('gameOver', ({ winnerId, reason }) => {
     const isWinner = winnerId === socket.id;
-    let msg = isWinner ? `🏆 목표 점수를 먼저 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 달성했습니다.` : `⏰ ${reason}`);
+    let msg = isWinner ? `🏆 목표 점수(500점)를 완료했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 완파했습니다.` : `⏰ ${reason}`);
     endGame(isWinner, msg);
   });
 
@@ -535,7 +535,6 @@
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
 
-    // 30열 / 50열 규격에 맞춰 24px 타일 / 11px 폰트 자동 적용
     const tileSize = currentConfig.cols >= 30 ? 24 : 30;
     const fontSize = currentConfig.cols >= 30 ? 11 : 13;
 
@@ -612,7 +611,7 @@
     const modalDesc = document.getElementById('modal-desc');
     const modalLeaderboard = document.getElementById('modal-leaderboard');
 
-    modalTitle.innerText = isVictory ? "🏆 승리!" : "💀 게임 종료";
+    modalTitle.innerText = isVictory ? "🏆 올클리어 승리!" : "💀 게임 종료";
     modalTitle.style.color = isVictory ? "#58a6ff" : "#f85149";
     modalDesc.innerText = message;
 
