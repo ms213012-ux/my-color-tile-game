@@ -14,7 +14,7 @@ const DEV_NICKNAME = '개발자천후';
 // 모드별 설정 값
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
-  hard: { rows: 25, cols: 45, targetTileCount: 500, winScore: 500 }
+  hard: { rows: 25, cols: 45, targetTileCount: 501, winScore: 500 }
 };
 
 const rooms = {};
