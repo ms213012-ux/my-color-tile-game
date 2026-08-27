@@ -8,13 +8,13 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// 개발자 치트키 닉네임 설정 (원하는 닉네임으로 변경 가능)
+// 개발자 치트키 닉네임 설정
 const DEV_NICKNAME = '개발자천후';
 
 // 모드별 설정 값
 const MODE_CONFIG = {
   normal: { rows: 12, cols: 22, targetTileCount: 198, winScore: 200 },
-  hard: { rows: 25, cols: 45, targetTileCount: 501, winScore: 500 }
+  hard: { rows: 25, cols: 45, targetTileCount: 506, winScore: 500 }
 };
 
 const rooms = {};
@@ -257,8 +257,11 @@ io.on('connection', (socket) => {
 
     broadcastScores(roomId);
 
-    // 개발자 닉네임 감지 시 입장 즉시 승리 종료
+    // 개발자 닉네임 감지 시 점수 채우고 승리 종료
     if (userNickname === DEV_NICKNAME) {
+      room.players[socket.id].score = room.config.winScore;
+      broadcastScores(roomId);
+
       if (room.timer) clearInterval(room.timer);
       io.to(roomId).emit('gameOver', {
         winnerId: socket.id,
