@@ -18,9 +18,21 @@
       justify-content: center;
       min-height: 100vh;
       padding: 10px;
+      overflow: hidden;
     }
 
     .hidden { display: none !important; }
+
+    /* --- 우승 폭죽 Canvas --- */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 99;
+    }
 
     /* --- 로비 화면 --- */
     .lobby-card {
@@ -154,6 +166,17 @@
     }
     .tile:hover { transform: scale(1.15); z-index: 2; filter: brightness(1.15); }
 
+    /* 타일 터지는 연출 애니메이션 */
+    .tile-explode {
+      animation: tilePopEffect 0.25s ease-out forwards !important;
+    }
+
+    @keyframes tilePopEffect {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); filter: brightness(2); }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
     .empty {
       background-color: #0d1117 !important; border-radius: 4px; cursor: pointer;
       box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -172,7 +195,6 @@
       to { opacity: 1; transform: scale(1.15); }
     }
 
-    /* 좁은 해상도(노트북 등) 전용 자동 축소 매크로 */
     @media (max-width: 1650px) {
       .tile {
         width: 20px !important;
@@ -188,6 +210,7 @@
       display: none; font-size: 14px;
     }
 
+    /* --- 결과 모달 & 우승 모션 애니메이션 --- */
     .modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(13, 17, 23, 0.85); align-items: center; justify-content: center;
@@ -198,6 +221,18 @@
     .modal-card {
       background-color: #161b22; border: 1px solid #30363d; border-radius: 14px;
       padding: 28px; width: 90%; max-width: 400px; text-align: center;
+      position: relative;
+    }
+
+    .modal.victory .modal-card {
+      animation: victoryPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      border-color: #58a6ff;
+      box-shadow: 0 0 30px rgba(88, 166, 255, 0.3);
+    }
+
+    @keyframes victoryPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     .modal-card h2 { font-size: 26px; margin-bottom: 8px; }
@@ -223,6 +258,7 @@
 </head>
 <body>
 
+  <canvas id="confetti-canvas"></canvas>
   <div id="toast" class="toast-msg"></div>
 
   <!-- 로비 화면 -->
@@ -326,6 +362,8 @@
 
   let hintSeconds = 60;
   let hintTimer = null;
+  let confettiAnimationId = null;
+  let isExplodingSequence = false; // 연출 진행 중 모박 클릭 방지
 
   function generateEyeFriendlyColors(count) {
     const colors = [];
@@ -380,6 +418,107 @@
     osc.stop(audioCtx.currentTime + 0.25);
   }
 
+  /* --- 연쇄 폭발 효과음 (경쾌한 팝 소리) --- */
+  function playPopSound() {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    // 폭발마다 살짝 랜덤한 톤 적용
+    const freq = 400 + Math.random() * 300;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+  }
+
+  /* --- 우승(Victory) 팬파레 효과음 --- */
+  function playVictorySound() {
+    initAudio();
+    const notes = [
+      { freq: 523.25, time: 0, dur: 0.15 },    // C5
+      { freq: 659.25, time: 0.15, dur: 0.15 }, // E5
+      { freq: 783.99, time: 0.3, dur: 0.15 },  // G5
+      { freq: 1046.50, time: 0.45, dur: 0.5 }  // C6
+    ];
+
+    notes.forEach(note => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(note.freq, audioCtx.currentTime + note.time);
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime + note.time);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + note.time + note.dur);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime + note.time);
+      osc.stop(audioCtx.currentTime + note.time + note.dur);
+    });
+  }
+
+  /* --- 우승 폭죽(Confetti) 연출 --- */
+  function startVictoryConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const colors = ['#58a6ff', '#238636', '#d29922', '#f85149', '#a371f7', '#f06292'];
+
+    for (let i = 0; i < 120; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        size: Math.random() * 8 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vy: Math.random() * 3 + 2,
+        vx: Math.random() * 2 - 1,
+        rotation: Math.random() * 360,
+        rotSpeed: Math.random() * 4 - 2
+      });
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.y += p.vy;
+        p.x += p.vx;
+        p.rotation += p.rotSpeed;
+
+        if (p.y > canvas.height) {
+          p.y = -10;
+          p.x = Math.random() * canvas.width;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      });
+
+      confettiAnimationId = requestAnimationFrame(render);
+    }
+
+    render();
+  }
+
+  function stopConfetti() {
+    if (confettiAnimationId) {
+      cancelAnimationFrame(confettiAnimationId);
+      confettiAnimationId = null;
+    }
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
   function resetHintTimer() {
     clearInterval(hintTimer);
     hintSeconds = 60;
@@ -425,6 +564,7 @@
 
   function startGame() {
     initAudio();
+    stopConfetti();
     const nickname = document.getElementById('nickname-input').value.trim() || "익명";
     currentRoomId = document.getElementById('room-input').value.trim() || "ROOM_1";
     const selectedMode = document.getElementById('mode-select').value;
@@ -444,6 +584,7 @@
   }
 
   function resetToLobby() {
+    stopConfetti();
     location.reload();
   }
 
@@ -451,6 +592,7 @@
     board = myBoard;
     timeRemaining = serverTime;
     currentConfig = config;
+    isExplodingSequence = false;
 
     document.getElementById('lobby-view').classList.add('hidden');
     document.getElementById('game-view').classList.remove('hidden');
@@ -463,6 +605,7 @@
   });
 
   socket.on('updateMyBoard', ({ board: myBoard, hit, shuffled }) => {
+    if (isExplodingSequence) return;
     board = myBoard;
     renderBoard();
 
@@ -525,11 +668,73 @@
     updateTimerDisplay();
   });
 
+  /* --- 게임 종료 수신 시 연출 실행 --- */
   socket.on('gameOver', ({ winnerId, reason }) => {
     const isWinner = winnerId === socket.id;
-    let msg = isWinner ? `🏆 목표 점수(500점)를 완료했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 완파했습니다.` : `⏰ ${reason}`);
-    endGame(isWinner, msg);
+    let msg = isWinner ? `🏆 목표 점수(${currentConfig.winScore}점)를 달성했습니다!` : (winnerId ? `💀 다른 플레이어가 먼저 완파했습니다.` : `⏰ ${reason}`);
+    
+    // 승리 시 타일 연쇄 폭발 연출 후 모달 띄우기
+    if (isWinner) {
+      triggerTileExplosions(() => {
+        endGame(true, msg);
+      });
+    } else {
+      endGame(false, msg);
+    }
   });
+
+  /* --- 타일 연쇄 폭발(Clear) 애니메이션 함수 --- */
+  function triggerTileExplosions(onComplete) {
+    isExplodingSequence = true;
+    clearInterval(hintTimer);
+
+    // 남아있는 타일들의 (r, c) 좌표 수집
+    const remainingTiles = [];
+    for (let r = 0; r < currentConfig.rows; r++) {
+      for (let c = 0; c < currentConfig.cols; c++) {
+        if (board[r][c] !== -1) {
+          remainingTiles.push({ r, c });
+        }
+      }
+    }
+
+    if (remainingTiles.length === 0) {
+      onComplete();
+      return;
+    }
+
+    // 배열 순서를 랜덤으로 섞음 (무작위 팡팡 터짐)
+    remainingTiles.sort(() => Math.random() - 0.5);
+
+    // 한 번에 폭발시킬 타일 개수 및 시간 간격 계산 (전체 연출 약 1.2~1.5초 내 종료)
+    const batchSize = Math.max(1, Math.floor(remainingTiles.length / 30));
+    const delay = 35; // ms
+
+    let idx = 0;
+    const explodeInterval = setInterval(() => {
+      for (let i = 0; i < batchSize && idx < remainingTiles.length; i++, idx++) {
+        const { r, c } = remainingTiles[idx];
+        const tileEl = document.getElementById(`tile-${r}-${c}`);
+        if (tileEl && !tileEl.classList.contains('empty')) {
+          tileEl.classList.add('tile-explode');
+          
+          setTimeout(() => {
+            board[r][c] = -1;
+            tileEl.className = 'tile empty';
+            tileEl.style.background = '';
+            tileEl.innerText = '';
+          }, 150);
+        }
+      }
+
+      playPopSound();
+
+      if (idx >= remainingTiles.length) {
+        clearInterval(explodeInterval);
+        setTimeout(onComplete, 300); // 모든 폭발이 끝나면 콜백 호출
+      }
+    }, delay);
+  }
 
   function buildBoardElements() {
     const boardEl = document.getElementById('board');
@@ -578,7 +783,7 @@
   }
 
   function handleTileClick(r, c) {
-    if (board[r][c] !== -1 || timeRemaining <= 0) return;
+    if (isExplodingSequence || board[r][c] !== -1 || timeRemaining <= 0) return;
     socket.emit('clickTile', { roomId: currentRoomId, r, c });
   }
 
@@ -631,6 +836,14 @@
       `;
       modalLeaderboard.appendChild(row);
     });
+
+    if (isVictory) {
+      modal.classList.add('victory');
+      playVictorySound();
+      startVictoryConfetti();
+    } else {
+      modal.classList.remove('victory');
+    }
 
     modal.classList.add('active');
   }
